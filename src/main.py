@@ -4,10 +4,11 @@ from tf.app import use
 from tf.fabric import Fabric
 
 # TOB Configuration
-TOB_DIR = 'tob_tf/TOB/TraductionOecumenique/1.0'
+GNT_DIR="/Users/ronan/Documents/Gemini/antigravity/biblecli"
+TOB_DIR = GNT_DIR+'/tob_tf/TOB/TraductionOecumenique/1.0'
 try:
     TF_TOB = Fabric(locations=[TOB_DIR], silent=True)
-    API_TOB = TF_TOB.load('text book chapter verse')
+    API_TOB = TF_TOB.load('text book chapter verse', silent=True)
 except Exception as e:
     print(f"Warning: Could not load TOB corpus: {e}")
     API_TOB = None
