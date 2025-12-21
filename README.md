@@ -63,6 +63,19 @@ Show cross-references with full verse text:
 biblecli "Jn 1:1" -f
 ```
 
+Filter cross-references by source (e.g., only TOB notes):
+```sh
+biblecli "Mk 1:1" -f -s tob
+```
+
+### Shortcuts
+
+For convenience, you can use the `tob` command to quickly access TOB notes. It is equivalent to `biblecli ... -f -s tob`.
+
+```sh
+tob "Mk 1:1"
+```
+
 ### Abbreviations
 
 Many common abbreviations are supported in both English and French:
