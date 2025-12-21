@@ -11,47 +11,69 @@ export PATH=$PATH:[YOUR-PATH-TO]/biblecli/bin
 
 ## Usage
 
-You can use the `biblecli` script to execute commands. It will automatically set up the environment if needed. The project requires Python 3 and the `text-fabric` library.
-`biblecli` manages the virtual environment and dependencies automatically.
+You can use the `biblecli` script to execute commands. It will automatically set up the environment if needed.
 
+### Basic Commands
 
-Display a verse
+Display a verse (Greek and French are default):
 ```sh
-biblecli "Jn 1:1" 
-
-Jean 1:1
-Ἐν ἀρχῇ ἦν ὁ Λόγος, καὶ ὁ Λόγος ἦν πρὸς τὸν Θεόν, καὶ Θεὸς ἦν ὁ Λόγος. 
-Au commencement était le Verbe, et le Verbe était tourné vers Dieu, et le Verbe était Dieu.
+biblecli "Jn 1:1"
 ```
 
-Greek+French is default, but `--tr [fr/gr]` gives you one translation:
-
-```sh
-biblecli "Marc 1:1-2" --tr fr
-biblecli "Mk 4" --tr gr
-```
-
-Can look up ranges of verses:
-
+Display a verse range:
 ```sh
 biblecli "Mt 5:1-10"
 ```
 
-Entire chapters:
-
+Display an entire chapter:
 ```sh
 biblecli "Mt 5"
 ```
 
-List Books
-
-```bash
+List all available books:
+```sh
 biblecli list books
 ```
 
+### Translations
+
+Use the `-t` or `--tr` option to specify translations. Supported: `en` (English), `fr` (French TOB), `gr` (Greek N1904).
+
+Show only English:
+```sh
+biblecli "Jn 3:16" -t en
+```
+
+Show both English and French:
+```sh
+biblecli "Jn 3:16" -t en fr
+```
+
+### Cross-references
+
+The tool supports verse-level cross-references from OpenBible data.
+
+Show cross-reference list:
+```sh
+biblecli "Jn 1:1" -c
+```
+
+Show cross-references with full verse text:
+```sh
+biblecli "Jn 1:1" -f
+```
+
+### Abbreviations
+
+Many common abbreviations are supported in both English and French:
+- `Gn`, `Gen`, `Genèse`, `Genesis`
+- `Mt`, `Matt`, `Matthieu`, `Matthew`
+- `Jn`, `Jean`, `John`
+- etc.
+
 ## Manual Setup
 
-If you prefer to run `main.py` directly, you must install the dependencies:
+If you prefer to run `src/main.py` directly, you must install the dependencies:
 
 ```bash
 pip install -r requirements.txt

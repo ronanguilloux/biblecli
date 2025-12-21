@@ -499,6 +499,8 @@ DESCRIPTION
        biblecli is a tool for reading and searching the Greek New Testament (N1904)
        along with English and French (TOB) translations.
 
+       If no translation is specified, Greek and French are shown by default.
+
 COMMANDS
        list books
               List all available books in the N1904 dataset.
@@ -519,10 +521,11 @@ OPTIONS
               Show this help message and exit.
 
        -t, --tr [en|fr|gr]
-              Specify which translations to display.
+              Specify which translations to display. Multiple values can be
+              provided (e.g., -t en fr).
               en: English
-              fr: French (TOB) - only
-              gr: Greek (N1904) - only
+              fr: French (TOB)
+              gr: Greek (N1904)
 
        -c, --crossref
               Display cross-references at verse level.
@@ -531,17 +534,23 @@ OPTIONS
               Display cross-references with related verse text.
 
 EXAMPLES
-       Display John 1:1 in Greek and French:
+       Display John 1:1 in Greek and French (default):
                biblecli "Jn 1:1"
 
-       Display Matthew 5:1-10:
-               biblecli "Mt 5:1-10"
+       Display Matthew 5:1-10 with English translation:
+               biblecli "Mt 5:1-10" -t en
 
        Display Mark chapter 4 in Greek only:
                biblecli "Mk 4" -t gr
 
+       Display John 1:1 with French and English:
+               biblecli "Jn 1:1" -t fr en
+
        Display John 1:1 with cross-references:
                biblecli "Jn 1:1" --crossref
+
+       Display Romans 1:1 with full cross-reference text:
+               biblecli "Rm 1:1" -f
 
        List all books:
                biblecli list books
