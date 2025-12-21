@@ -7,42 +7,97 @@ from tf.fabric import Fabric
 GNT_DIR="/Users/ronan/Documents/Gemini/antigravity/biblecli"
 TOB_DIR = GNT_DIR+'/tob_tf/TOB/TraductionOecumenique/1.0'
 try:
-    TF_TOB = Fabric(locations=[TOB_DIR], silent=True)
-    API_TOB = TF_TOB.load('text book chapter verse', silent=True)
+    import os
+    import contextlib
+    with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
+        TF_TOB = Fabric(locations=[TOB_DIR], silent=True)
+        API_TOB = TF_TOB.load('text book chapter verse', silent=True)
 except Exception as e:
-    print(f"Warning: Could not load TOB corpus: {e}")
     API_TOB = None
 
-# Mapping from N1904 (English) to TOB (French) book names
-N1904_TO_TOB = {
-    "Matthew": "Matthieu",
-    "Mark": "Marc",
-    "Luke": "Luc",
-    "John": "Jean",
-    "Acts": "Actes des Apôtres",
-    "Romans": "Romains",
-    "1_Corinthians": "1 Corinthiens",
-    "2_Corinthians": "2 Corinthiens",
-    "Galatians": "Galates",
-    "Ephesians": "Éphésiens",
-    "Philippians": "Philippiens",
-    "Colossians": "Colossiens",
-    "1_Thessalonians": "1 Thessaloniciens",
-    "2_Thessalonians": "2 Thessaloniciens",
-    "1_Timothy": "1 Timothée",
-    "2_Timothy": "2 Timothée",
-    "Titus": "Tite",
-    "Philemon": "Philémon",
-    "Hebrews": "Hébreux",
-    "James": "Jacques",
-    "1_Peter": "1 Pierre",
-    "2_Peter": "2 Pierre",
-    "1_John": "1 Jean",
-    "2_John": "2 Jean",
-    "3_John": "3 Jean",
-    "Jude": "Jude",
-    "Revelation": "Apocalypse"
-}
+# Mappings populated from data/cross_booknames_fr.json
+N1904_TO_TOB = {}
+N1904_TO_CODE = {}
+CODE_TO_FR_ABBR = {}
+CODE_TO_N1904 = {}
+ABBREVIATIONS = {}
+BOOK_ORDER = {} # Maps book code (e.g. "GEN") to its index in TOB order
+
+def load_book_mappings():
+    global N1904_TO_TOB, N1904_TO_CODE, ABBREVIATIONS, CODE_TO_FR_ABBR, CODE_TO_N1904, BOOK_ORDER
+    import json
+    import os
+    path = os.path.join(GNT_DIR, "data", "cross_booknames_fr.json")
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        books = data.get("books", {})
+        for i, (code, info) in enumerate(books.items()):
+            BOOK_ORDER[code] = i
+            en_info = info.get("en", {})
+            en_label = en_info.get("label")
+            en_abbr = en_info.get("abbr")
+            
+            # Internal N1904 key (uses Roman numerals for numbered books)
+            en_key = en_label if en_label else ""
+            if en_key.startswith("1 "): en_key = "I_" + en_key[2:]
+            elif en_key.startswith("2 "): en_key = "II_" + en_key[2:]
+            elif en_key.startswith("3 "): en_key = "III_" + en_key[2:]
+            en_key = en_key.replace(" ", "_")
+            
+            fr = info.get("fr", {})
+            fr_label = fr.get("label")
+            fr_abbr = fr.get("abbr")
+            
+            if en_key:
+                N1904_TO_TOB[en_key] = fr_label
+                N1904_TO_CODE[en_key] = code
+                CODE_TO_FR_ABBR[code] = fr_abbr
+                CODE_TO_N1904[code] = en_key
+                
+                # Register English variations
+                ABBREVIATIONS[en_key] = en_key
+                ABBREVIATIONS[code] = en_key # e.g. JHN -> John
+                if en_label: ABBREVIATIONS[en_label] = en_key
+                if en_abbr: 
+                    ABBREVIATIONS[en_abbr] = en_key
+                    # Also register without space for numbered books (e.g. 1Cor)
+                    if " " in en_abbr:
+                        ABBREVIATIONS[en_abbr.replace(" ", "")] = en_key
+                
+            # Register French variations
+            if fr_abbr: 
+                ABBREVIATIONS[fr_abbr] = en_key
+                if " " in fr_abbr:
+                    ABBREVIATIONS[fr_abbr.replace(" ", "")] = en_key
+            if fr_label: ABBREVIATIONS[fr_label] = en_key
+            
+        # Common English extras (fallbacks)
+        for k, v in {"Mk": "Mark", "Lk": "Luke", "Jn": "John"}.items():
+            if k not in ABBREVIATIONS: ABBREVIATIONS[k] = v
+    except Exception as e:
+        print(f"Warning: Could not load book mappings: {e}")
+
+load_book_mappings()
+
+def load_cross_references():
+    import json
+    import os
+    path = os.path.join(GNT_DIR, "data", "cross_references.json")
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        indexed = {}
+        for entry in data.get("cross_references", []):
+            indexed[entry["source"]] = entry["relations"]
+        return indexed
+    except Exception as e:
+        print(f"Warning: Could not load cross-references: {e}")
+        return {}
 
 def get_french_text(book_en, chapter_num, verse_num):
     if not API_TOB:
@@ -92,8 +147,48 @@ def get_french_text(book_en, chapter_num, verse_num):
     # 4. Get text
     return F.text.v(verse_node)
 
+def format_ref_fr(target_str):
+    """
+    Format a reference like 'ACT.1.25-ACT.1.26' into 'Ac 1:25-26'.
+    Converts book codes to French abbreviations.
+    """
+    if not target_str: return ""
     
-def handle_reference(A, ref_str, show_english=False, show_greek=True, show_french=True):
+    def parse_one(ref):
+        parts = ref.split(".")
+        if len(parts) >= 3:
+            book_code = parts[0]
+            chapter = parts[1]
+            verse = parts[2]
+            fr_abbr = CODE_TO_FR_ABBR.get(book_code, book_code)
+            return fr_abbr, chapter, verse
+        return None, None, None
+
+    if "-" in target_str:
+        ranges = target_str.split("-")
+        if len(ranges) == 2:
+            start_ref = ranges[0]
+            end_ref = ranges[1]
+            
+            s_abbr, s_ch, s_vs = parse_one(start_ref)
+            e_abbr, e_ch, e_vs = parse_one(end_ref)
+            
+            if s_abbr:
+                if s_abbr == e_abbr and s_ch == e_ch:
+                    return f"{s_abbr} {s_ch}:{s_vs}-{e_vs}"
+                elif s_abbr == e_abbr:
+                    return f"{s_abbr} {s_ch}:{s_vs}-{e_ch}:{e_vs}"
+                else:
+                    return f"{s_abbr} {s_ch}:{s_vs}-{e_abbr} {e_ch}:{e_vs}"
+    
+    abbr, ch, vs = parse_one(target_str)
+    if abbr:
+        return f"{abbr} {ch}:{vs}"
+        
+    return target_str
+
+    
+def handle_reference(A, ref_str, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False):
     api = A.api
     T = api.T
     F = api.F
@@ -102,29 +197,24 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
     # Normalize reference
     ref_str = ref_str.replace(',', ':')
     
-    # Book abbreviations
-    ABBREVIATIONS = {
-        "Mt": "Matthew",
-        "Matthieu": "Matthew",
-        "Mc": "Mark",
-        "Mk": "Mark",
-        "Marc": "Mark",
-        "Lk": "Luke",
-        "Lc": "Luke",
-        "Luc": "Luke",
-        "Jn": "John",
-        "Jean": "John"
-    }
+    # Book abbreviations are now global
+    global ABBREVIATIONS
     
     # Check if reference starts with any abbreviation
+    # Check for abbreviation (can be 1 or 2 words, e.g. "Jn" or "1 Cor")
     parts = ref_str.split()
-    if parts:
-        book_abbr = parts[0]
-        if book_abbr in ABBREVIATIONS:
-            # Replace abbreviation with full book name
-            ref_str = f"{ABBREVIATIONS[book_abbr]} {' '.join(parts[1:])}"
-    
-    # print(f"Searching for: {ref_str}")
+    if len(parts) >= 2:
+        two_word_abbr = f"{parts[0]} {parts[1]}"
+        if two_word_abbr in ABBREVIATIONS:
+            ref_str = f"{ABBREVIATIONS[two_word_abbr]} {' '.join(parts[2:])}"
+            parts = ref_str.split() # refresh parts
+        elif parts[0] in ABBREVIATIONS:
+            ref_str = f"{ABBREVIATIONS[parts[0]]} {' '.join(parts[1:])}"
+            parts = ref_str.split() # refresh parts
+    elif len(parts) == 1:
+        if parts[0] in ABBREVIATIONS:
+            ref_str = ABBREVIATIONS[parts[0]]
+            parts = [ref_str]
 
     try:
         # Check if it's a range (e.g., "Luke 1:4-7")
@@ -144,18 +234,25 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
                     if ' ' in book_chapter:
                         book, chapter = book_chapter.rsplit(' ', 1)
                         book_fr= N1904_TO_TOB.get(book)
+                        if not book_fr: book_fr = book
                         print(f"\n{book_fr} {chapter}:{start_v}-{end_v}")
                     else:
+                        book = book_chapter
+                        chapter = ""
                         print(f"\n{book_chapter}:{start_v}-{end_v}")
                     
                     for v_num in range(start_v, end_v + 1):
                         single_ref = f"{book_chapter}:{v_num}"
                         node = A.nodeFromSectionStr(single_ref)
-                        
-                        if node:
-                            print_verse(A, node, show_english, show_greek, show_french)
+                        if node and isinstance(node, int):
+                            print_verse(A, node=node, show_english=show_english, show_greek=show_greek, show_french=show_french, show_crossref=show_crossref, cross_refs=cross_refs, show_crossref_text=show_crossref_text)
                         else:
-                            print(f"Could not find verse: {single_ref}")
+                            # Fallback for OT or missing verses
+                            if ' ' in book_chapter:
+                                b, c = book_chapter.rsplit(' ', 1)
+                                print_verse(A, book_en=b, chapter=c, verse=v_num, show_english=show_english, show_greek=show_greek, show_french=show_french, show_crossref=show_crossref, cross_refs=cross_refs, show_crossref_text=show_crossref_text)
+                            else:
+                                print(f"Could not find verse: {single_ref}")
                     return
 
         # Check if it's a chapter reference (e.g., "John 13")
@@ -168,10 +265,8 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
                     
                     # Find all verses in this chapter
                     book_fr = N1904_TO_TOB.get(book_name)
-                    if book_fr:
-                        print(f"\n{book_fr} {chapter_num}")
-                    else:
-                        print(f"\n{book_name} {chapter_num}")
+                    if not book_fr: book_fr = book_name
+                    print(f"\n{book_fr} {chapter_num}")
                     
                     # Find the chapter node
                     chapter_nodes = [n for n in F.otype.s('chapter') 
@@ -183,9 +278,23 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
                         verse_nodes = L.d(chapter_node, otype='verse')
                         
                         for verse_node in verse_nodes:
-                            print_verse(A, verse_node, show_english, show_greek, show_french)
+                            print_verse(A, node=verse_node, show_english=show_english, show_greek=show_greek, show_french=show_french, show_crossref=show_crossref, cross_refs=cross_refs, show_crossref_text=show_crossref_text)
                         return
                     else:
+                        # Fallback for OT: we don't know number of verses, so we look them up until failure
+                        if API_TOB:
+                            v = 1
+                            found_any = False
+                            while True:
+                                txt = get_french_text(book_name, chapter_num, v)
+                                if (not txt or txt.startswith("[TOB:")) and v > 1:
+                                    break
+                                if txt and not txt.startswith("[TOB:"):
+                                    print_verse(A, book_en=book_name, chapter=chapter_num, verse=v, show_english=show_english, show_greek=show_greek, show_french=show_french, show_crossref=show_crossref, cross_refs=cross_refs, show_crossref_text=show_crossref_text)
+                                    found_any = True
+                                v += 1
+                            if found_any: return
+                        
                         print(f"Could not find chapter: {ref_str}")
                         return
                 except ValueError:
@@ -194,36 +303,71 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
         # Fallback to single reference lookup
         node = A.nodeFromSectionStr(ref_str)
         
-        if node:
-            print_verse(A, node, show_english, show_greek, show_french)
+        if node and isinstance(node, int):
+            print_verse(A, node=node, show_english=show_english, show_greek=show_greek, show_french=show_french, show_crossref=show_crossref, cross_refs=cross_refs, show_crossref_text=show_crossref_text)
         else:
+            # Final attempt: manual parse for single verse (e.g. "Is 40:3")
+            if ":" in ref_str and " " in ref_str:
+                parts = ref_str.rsplit(' ', 1)
+                book_name = parts[0]
+                if ":" in parts[1]:
+                    ch_v = parts[1].split(":")
+                    if len(ch_v) == 2:
+                        try:
+                            ch = int(ch_v[0])
+                            vs = int(ch_v[1])
+                            print_verse(A, book_en=book_name, chapter=ch, verse=vs, show_english=show_english, show_greek=show_greek, show_french=show_french, show_crossref=show_crossref, cross_refs=cross_refs, show_crossref_text=show_crossref_text)
+                            return
+                        except ValueError:
+                            pass
+
             print(f"Could not find reference: {ref_str}")
             
     except Exception as e:
+        import traceback
+        # print(f"DEBUG: ref_str='{ref_str}'")
         print(f"Error processing reference: {e}")
+        # traceback.print_exc()
 
-def print_verse(A, node, show_english=False, show_greek=True, show_french=True):
+def print_verse(A, node=None, book_en=None, chapter=None, verse=None, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False):
     api = A.api
     T = api.T
     F = api.F
     L = api.L
     
-    # Print reference
-    section = T.sectionFromNode(node)
-    book_en = section[0]
-    chapter = section[1]
-    verse = section[2]
-    book_fr= N1904_TO_TOB.get(book_en)
+    if node:
+        section = T.sectionFromNode(node)
+        book_en = section[0]
+        chapter = int(section[1])
+        verse = int(section[2])
+    else:
+        # manual values provided
+        chapter = int(chapter)
+        verse = int(verse)
+
+    book_fr = N1904_TO_TOB.get(book_en)
+    if not book_fr:
+        book_fr = N1904_TO_TOB.get(book_en.replace(" ", "_"))
+    if not book_fr:
+        book_fr = book_en
     
-    print(f"\n{book_fr} {chapter}:{verse}")
+    # Header
+    if node:
+        print(f"\n{book_fr} {chapter}:{verse}")
+    else:
+        # Only print header if manual (loop handles chapter header elsewhere)
+        # But for consistency, let's print it here too if not already printed.
+        # Actually handle_reference prints headers for ranges.
+        print(f"\n{book_fr} {chapter}:{verse}")
 
     # Greek text
-    if show_greek:
+    if show_greek and node:
         greek_text = T.text(node)
-        print(f"{greek_text}")
+        if greek_text and greek_text.strip():
+            print(f"{greek_text}")
     
     # English translation
-    if show_english:
+    if show_english and node:
         words = L.d(node, otype='word')
         english_text = []
         for w in words:
@@ -236,8 +380,75 @@ def print_verse(A, node, show_english=False, show_greek=True, show_french=True):
     # French translation (TOB)
     if show_french:
         french_text = get_french_text(book_en, chapter, verse)
-        if french_text:
+        if french_text and not french_text.startswith("[TOB:"):
             print(f"{french_text}")
+        elif french_text and node: # Only print if it was expected (node exists)
+             print(f"{french_text}")
+
+    # Cross-references
+    if show_crossref:
+        print("––––––––––––––––––––––––––––––––––")
+        groups = {"Parallel": [], "Allusion": [], "Quotation": [], "Other": []}
+        
+        if cross_refs:
+            book_code = N1904_TO_CODE.get(book_en) or N1904_TO_CODE.get(book_en.replace(" ", "_"))
+            if book_code:
+                source_key = f"{book_code}.{chapter}.{verse}"
+                relations = cross_refs.get(source_key, [])
+                
+                def sort_key(rel):
+                    target = rel.get("target", "")
+                    t_book = target.split(".")[0] if "." in target else ""
+                    order = BOOK_ORDER.get(t_book, 999)
+                    try:
+                        parts = target.split(".")
+                        ch = int(parts[1]) if len(parts) > 1 else 0
+                        vs = int(parts[2].split("-")[0]) if len(parts) > 2 else 0
+                        return (order, ch, vs)
+                    except (ValueError, IndexError):
+                        return (order, 0, 0)
+
+                relations.sort(key=sort_key)
+                for rel in relations:
+                    rel_type = rel.get("type", "other")
+                    target = rel.get("target", "")
+                    target_fr = format_ref_fr(target)
+                    if rel_type == "parallel": groups["Parallel"].append((target, target_fr))
+                    elif rel_type == "allusion": groups["Allusion"].append((target, target_fr))
+                    elif rel_type == "quotation": groups["Quotation"].append((target, target_fr))
+                    else: groups["Other"].append((target, target_fr))
+
+        for label, items in groups.items():
+            if items:
+                print(f"    {label}: ")
+                for target_raw, target_fr in items:
+                    print(f"        {target_fr}")
+                    if show_crossref_text:
+                        refs_to_fetch = []
+                        if "-" in target_raw:
+                            parts = target_raw.split("-")
+                            if len(parts) == 2:
+                                start_p = parts[0].split(".")
+                                end_p = parts[1].split(".")
+                                if len(start_p) == 3 and len(end_p) == 3:
+                                    b_code = start_p[0]
+                                    ch = int(start_p[1])
+                                    s_v = int(start_p[2])
+                                    e_v = int(end_p[2])
+                                    for v in range(s_v, e_v + 1):
+                                        refs_to_fetch.append((b_code, ch, v))
+                        else:
+                            parts = target_raw.split(".")
+                            if len(parts) == 3:
+                                refs_to_fetch.append((parts[0], int(parts[1]), int(parts[2])))
+                        
+                        for b_code, ch, vs in refs_to_fetch:
+                            b_en = CODE_TO_N1904.get(b_code)
+                            if b_en:
+                                txt = get_french_text(b_en, ch, vs)
+                                if txt: print(f"            {txt}")
+            else:
+                print(f"    {label}: ")
 
 def handle_list(A, args):
     api = A.api
@@ -258,12 +469,82 @@ def handle_list(A, args):
     else:
         print(f"Unknown list command: {subcommand}")
 
+def print_help():
+    help_text = """
+GNT(1)                       Bible CLI Manual                       GNT(1)
+
+NAME
+       gnt - A command-line interface for the Greek New Testament (N1904)
+
+SYNOPSIS
+       gnt [COMMAND | REFERENCE] [OPTIONS]
+
+DESCRIPTION
+       gnt is a tool for reading and searching the Greek New Testament (N1904)
+       along with English and French (TOB) translations.
+
+COMMANDS
+       list books
+              List all available books in the N1904 dataset.
+
+       search [QUERY] (Coming soon)
+              Search for specific terms in the New Testament.
+
+REFERENCES
+       References can be specified in various formats:
+       - Single verse: "Jn 1:1" or "Jean 1:1"
+       - Verse range: "Mt 5:1-10"
+       - Whole chapter: "Mk 4"
+
+       Abbreviations like Mt, Mc, Mk, Lk, Lc, Jn are supported.
+
+OPTIONS
+       -t, --tr [en|fr|gr]
+              Specify which translations to display.
+              en: English
+              fr: French (TOB) - only
+              gr: Greek (N1904) - only
+
+       -c, --crossref
+              Display cross-references at verse level.
+
+       --cf
+              Display cross-references with related verse text.
+
+EXAMPLES
+       Display John 1:1 in Greek and French:
+               gnt "Jn 1:1"
+
+       Display Matthew 5:1-10:
+               gnt "Mt 5:1-10"
+
+       Display Mark chapter 4 in Greek only:
+               gnt "Mk 4" -t gr
+
+       Display John 1:1 with cross-references:
+               gnt "Jn 1:1" --crossref
+
+       List all books:
+               gnt list books
+
+AUTHOR
+       Written by Ronan Guilloux and the Gemini Team.
+"""
+    print(help_text)
+
 def main():
-    parser = argparse.ArgumentParser(description="N1904 CLI Tool")
-    parser.add_argument("command_or_ref", help="Command (e.g., 'search', 'list') or Bible reference (e.g., 'Mk 1,1')")
+    parser = argparse.ArgumentParser(description="N1904 CLI Tool", add_help=False)
+    parser.add_argument("-h", "--help", action="store_true", help="Show this help message and exit")
+    parser.add_argument("command_or_ref", nargs="?", help="Command (e.g., 'search', 'list') or Bible reference (e.g., 'Mk 1,1')")
     parser.add_argument("args", nargs="*", help="Arguments for the command")
-    parser.add_argument("--tr", nargs="+", choices=["en", "fr", "gr"], help="Translations to display: 'en' (English), 'fr' (French only), 'gr' (Greek only)")
+    parser.add_argument("-t", "--tr", nargs="+", choices=["en", "fr", "gr"], help="Translations to display: 'en' (English), 'fr' (French only), 'gr' (Greek only)")
+    parser.add_argument("-c", "--crossref", action="store_true", help="Display cross-references")
+    parser.add_argument("--cf", "--crossref-with-text", action="store_true", help="Display cross-references with verse text")
     args = parser.parse_args()
+
+    if args.help or not args.command_or_ref:
+        print_help()
+        return
 
     # Determine if first argument is a command or a reference
     first_arg = args.command_or_ref
@@ -285,9 +566,11 @@ def main():
         return
 
     # If not a command, treat as reference (load TF)
-    print(f"Loading N1904 data... (this may take a while on first run)")
     try:
-        A = use("CenterBLC/N1904", version="1.0.0", silent=True)
+        import os
+        import contextlib
+        with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
+            A = use("CenterBLC/N1904", version="1.0.0", silent=True)
     except Exception as e:
         print(f"Error loading N1904: {e}")
         sys.exit(1)
@@ -308,8 +591,14 @@ def main():
             show_greek = True
             show_french = False
 
-    handle_reference(A, first_arg, show_english, show_greek, show_french)
+    cross_refs = None
+    show_crossref = args.crossref or args.cf
+    if show_crossref:
+        cross_refs = load_cross_references()
+
+    handle_reference(A, first_arg, show_english, show_greek, show_french, show_crossref, cross_refs, args.cf)
 
 
 if __name__ == "__main__":
     main()
+

@@ -1,0 +1,666 @@
+{
+    "version": "1.0",
+    "description": "Cross book names and references",
+    "books": {
+        "GEN": {
+            "en": {
+                "label": "Genesis",
+                "abbr": "Gen"
+            },
+            "fr": {
+                "label": "Genèse",
+                "abbr": "Gn"
+            }
+        },
+        "EXO": {
+            "en": {
+                "label": "Exodus",
+                "abbr": "Ex"
+            },
+            "fr": {
+                "label": "Exode",
+                "abbr": "Ex"
+            }
+        },
+        "LEV": {
+            "en": {
+                "label": "Leviticus",
+                "abbr": "Lev"
+            },
+            "fr": {
+                "label": "Lévitique",
+                "abbr": "Lv"
+            }
+        },
+        "NUM": {
+            "en": {
+                "label": "Numbers",
+                "abbr": "Num"
+            },
+            "fr": {
+                "label": "Nombres",
+                "abbr": "Nb"
+            }
+        },
+        "DEU": {
+            "en": {
+                "label": "Deuteronomy",
+                "abbr": "Deut"
+            },
+            "fr": {
+                "label": "Deutéronome",
+                "abbr": "Dt"
+            }
+        },
+        "JOS": {
+            "en": {
+                "label": "Joshua",
+                "abbr": "Josh"
+            },
+            "fr": {
+                "label": "Josué",
+                "abbr": "Jos"
+            }
+        },
+        "JDG": {
+            "en": {
+                "label": "Judges",
+                "abbr": "Judg"
+            },
+            "fr": {
+                "label": "Juges",
+                "abbr": "Jg"
+            }
+        },
+        "RUT": {
+            "en": {
+                "label": "Ruth",
+                "abbr": "Ruth"
+            },
+            "fr": {
+                "label": "Ruth",
+                "abbr": "Rt"
+            }
+        },
+        "1SA": {
+            "en": {
+                "label": "1 Samuel",
+                "abbr": "1 Sam"
+            },
+            "fr": {
+                "label": "1 Samuel",
+                "abbr": "1 S"
+            }
+        },
+        "2SA": {
+            "en": {
+                "label": "2 Samuel",
+                "abbr": "2 Sam"
+            },
+            "fr": {
+                "label": "2 Samuel",
+                "abbr": "2 S"
+            }
+        },
+        "1KI": {
+            "en": {
+                "label": "1 Kings",
+                "abbr": "1 Kings"
+            },
+            "fr": {
+                "label": "1 Rois",
+                "abbr": "1 R"
+            }
+        },
+        "2KI": {
+            "en": {
+                "label": "2 Kings",
+                "abbr": "2 Kings"
+            },
+            "fr": {
+                "label": "2 Rois",
+                "abbr": "2 R"
+            }
+        },
+        "1CH": {
+            "en": {
+                "label": "1 Chronicles",
+                "abbr": "1 Chron"
+            },
+            "fr": {
+                "label": "1 Chroniques",
+                "abbr": "1 Ch"
+            }
+        },
+        "2CH": {
+            "en": {
+                "label": "2 Chronicles",
+                "abbr": "2 Chron"
+            },
+            "fr": {
+                "label": "2 Chroniques",
+                "abbr": "2 Ch"
+            }
+        },
+        "EZR": {
+            "en": {
+                "label": "Ezra",
+                "abbr": "Ezra"
+            },
+            "fr": {
+                "label": "Esdras",
+                "abbr": "Esd"
+            }
+        },
+        "NEH": {
+            "en": {
+                "label": "Nehemiah",
+                "abbr": "Neh"
+            },
+            "fr": {
+                "label": "Néhémie",
+                "abbr": "Ne"
+            }
+        },
+        "EST": {
+            "en": {
+                "label": "Esther",
+                "abbr": "Esth"
+            },
+            "fr": {
+                "label": "Esther",
+                "abbr": "Est"
+            }
+        },
+        "JOB": {
+            "en": {
+                "label": "Job",
+                "abbr": "Job"
+            },
+            "fr": {
+                "label": "Job",
+                "abbr": "Jb"
+            }
+        },
+        "PSA": {
+            "en": {
+                "label": "Psalms",
+                "abbr": "Ps"
+            },
+            "fr": {
+                "label": "Psaumes",
+                "abbr": "Ps"
+            }
+        },
+        "PRO": {
+            "en": {
+                "label": "Proverbs",
+                "abbr": "Prov"
+            },
+            "fr": {
+                "label": "Proverbes",
+                "abbr": "Pr"
+            }
+        },
+        "ECC": {
+            "en": {
+                "label": "Ecclesiastes",
+                "abbr": "Eccl"
+            },
+            "fr": {
+                "label": "Ecclésiaste",
+                "abbr": "Qo"
+            }
+        },
+        "SNG": {
+            "en": {
+                "label": "Song of Solomon",
+                "abbr": "Song"
+            },
+            "fr": {
+                "label": "Cantique des Cantiques",
+                "abbr": "Ct"
+            }
+        },
+        "ISA": {
+            "en": {
+                "label": "Isaiah",
+                "abbr": "Isa"
+            },
+            "fr": {
+                "label": "Ésaïe",
+                "abbr": "Is"
+            }
+        },
+        "JER": {
+            "en": {
+                "label": "Jeremiah",
+                "abbr": "Jer"
+            },
+            "fr": {
+                "label": "Jérémie",
+                "abbr": "Jr"
+            }
+        },
+        "LAM": {
+            "en": {
+                "label": "Lamentations",
+                "abbr": "Lam"
+            },
+            "fr": {
+                "label": "Lamentations de Jérémie",
+                "abbr": "Lm"
+            }
+        },
+        "EZE": {
+            "en": {
+                "label": "Ezekiel",
+                "abbr": "Ezek"
+            },
+            "fr": {
+                "label": "Ézéchiel",
+                "abbr": "Ez"
+            }
+        },
+        "DAN": {
+            "en": {
+                "label": "Daniel",
+                "abbr": "Dan"
+            },
+            "fr": {
+                "label": "Daniel",
+                "abbr": "Dn"
+            }
+        },
+        "HOS": {
+            "en": {
+                "label": "Hosea",
+                "abbr": "Hos"
+            },
+            "fr": {
+                "label": "Osée",
+                "abbr": "Os"
+            }
+        },
+        "JOE": {
+            "en": {
+                "label": "Joel",
+                "abbr": "Joel"
+            },
+            "fr": {
+                "label": "Joël",
+                "abbr": "Jl"
+            }
+        },
+        "AMO": {
+            "en": {
+                "label": "Amos",
+                "abbr": "Amos"
+            },
+            "fr": {
+                "label": "Amos",
+                "abbr": "Am"
+            }
+        },
+        "OBA": {
+            "en": {
+                "label": "Obadiah",
+                "abbr": "Obad"
+            },
+            "fr": {
+                "label": "Abdias",
+                "abbr": "Ab"
+            }
+        },
+        "JON": {
+            "en": {
+                "label": "Jonah",
+                "abbr": "Jonah"
+            },
+            "fr": {
+                "label": "Jonas",
+                "abbr": "Jon"
+            }
+        },
+        "MIC": {
+            "en": {
+                "label": "Micah",
+                "abbr": "Mic"
+            },
+            "fr": {
+                "label": "Michée",
+                "abbr": "Mi"
+            }
+        },
+        "NAH": {
+            "en": {
+                "label": "Nahum",
+                "abbr": "Nah"
+            },
+            "fr": {
+                "label": "Nahum",
+                "abbr": "Na"
+            }
+        },
+        "HAB": {
+            "en": {
+                "label": "Habakkuk",
+                "abbr": "Hab"
+            },
+            "fr": {
+                "label": "Habacuc",
+                "abbr": "Ha"
+            }
+        },
+        "ZEP": {
+            "en": {
+                "label": "Zephaniah",
+                "abbr": "Zeph"
+            },
+            "fr": {
+                "label": "Sophonie",
+                "abbr": "So"
+            }
+        },
+        "HAG": {
+            "en": {
+                "label": "Haggai",
+                "abbr": "Hag"
+            },
+            "fr": {
+                "label": "Aggée",
+                "abbr": "Ag"
+            }
+        },
+        "ZEC": {
+            "en": {
+                "label": "Zechariah",
+                "abbr": "Zech"
+            },
+            "fr": {
+                "label": "Zacharie",
+                "abbr": "Za"
+            }
+        },
+        "MAL": {
+            "en": {
+                "label": "Malachi",
+                "abbr": "Mal"
+            },
+            "fr": {
+                "label": "Malachie",
+                "abbr": "Ml"
+            }
+        },
+        "MAT": {
+            "en": {
+                "label": "Matthew",
+                "abbr": "Mt"
+            },
+            "fr": {
+                "label": "Matthieu",
+                "abbr": "Mt"
+            }
+        },
+        "MRK": {
+            "en": {
+                "label": "Mark",
+                "abbr": "Mk"
+            },
+            "fr": {
+                "label": "Marc",
+                "abbr": "Mc"
+            }
+        },
+        "LUK": {
+            "en": {
+                "label": "Luke",
+                "abbr": "Lk"
+            },
+            "fr": {
+                "label": "Luc",
+                "abbr": "Lc"
+            }
+        },
+        "JHN": {
+            "en": {
+                "label": "John",
+                "abbr": "Jn"
+            },
+            "fr": {
+                "label": "Jean",
+                "abbr": "Jn"
+            }
+        },
+        "ACT": {
+            "en": {
+                "label": "Acts",
+                "abbr": "Acts"
+            },
+            "fr": {
+                "label": "Actes des Apôtres",
+                "abbr": "Ac"
+            }
+        },
+        "ROM": {
+            "en": {
+                "label": "Romans",
+                "abbr": "Rom"
+            },
+            "fr": {
+                "label": "Romains",
+                "abbr": "Rm"
+            }
+        },
+        "1CO": {
+            "en": {
+                "label": "1 Corinthians",
+                "abbr": "1 Cor"
+            },
+            "fr": {
+                "label": "1 Corinthiens",
+                "abbr": "1 Co"
+            }
+        },
+        "2CO": {
+            "en": {
+                "label": "2 Corinthians",
+                "abbr": "2 Cor"
+            },
+            "fr": {
+                "label": "2 Corinthiens",
+                "abbr": "2 Co"
+            }
+        },
+        "GAL": {
+            "en": {
+                "label": "Galatians",
+                "abbr": "Gal"
+            },
+            "fr": {
+                "label": "Galates",
+                "abbr": "Ga"
+            }
+        },
+        "EPH": {
+            "en": {
+                "label": "Ephesians",
+                "abbr": "Eph"
+            },
+            "fr": {
+                "label": "Éphésiens",
+                "abbr": "Ep"
+            }
+        },
+        "PHP": {
+            "en": {
+                "label": "Philippians",
+                "abbr": "Phil"
+            },
+            "fr": {
+                "label": "Philippiens",
+                "abbr": "Ph"
+            }
+        },
+        "COL": {
+            "en": {
+                "label": "Colossians",
+                "abbr": "Col"
+            },
+            "fr": {
+                "label": "Colossiens",
+                "abbr": "Col"
+            }
+        },
+        "1TH": {
+            "en": {
+                "label": "1 Thessalonians",
+                "abbr": "1 Thess"
+            },
+            "fr": {
+                "label": "1 Thessaloniciens",
+                "abbr": "1 Th"
+            }
+        },
+        "2TH": {
+            "en": {
+                "label": "2 Thessalonians",
+                "abbr": "2 Thess"
+            },
+            "fr": {
+                "label": "2 Thessaloniciens",
+                "abbr": "2 Th"
+            }
+        },
+        "1TI": {
+            "en": {
+                "label": "1 Timothy",
+                "abbr": "1 Tim"
+            },
+            "fr": {
+                "label": "1 Timothée",
+                "abbr": "1 Tm"
+            }
+        },
+        "2TI": {
+            "en": {
+                "label": "2 Timothy",
+                "abbr": "2 Tim"
+            },
+            "fr": {
+                "label": "2 Timothée",
+                "abbr": "2 Tm"
+            }
+        },
+        "TIT": {
+            "en": {
+                "label": "Titus",
+                "abbr": "Tit"
+            },
+            "fr": {
+                "label": "Tite",
+                "abbr": "Tt"
+            }
+        },
+        "PHM": {
+            "en": {
+                "label": "Philemon",
+                "abbr": "Phm"
+            },
+            "fr": {
+                "label": "Philémon",
+                "abbr": "Phm"
+            }
+        },
+        "HEB": {
+            "en": {
+                "label": "Hebrews",
+                "abbr": "Heb"
+            },
+            "fr": {
+                "label": "Hébreux",
+                "abbr": "He"
+            }
+        },
+        "JAS": {
+            "en": {
+                "label": "James",
+                "abbr": "Jas"
+            },
+            "fr": {
+                "label": "Jacques",
+                "abbr": "Jc"
+            }
+        },
+        "1PE": {
+            "en": {
+                "label": "1 Peter",
+                "abbr": "1 Pet"
+            },
+            "fr": {
+                "label": "1 Pierre",
+                "abbr": "1 P"
+            }
+        },
+        "2PE": {
+            "en": {
+                "label": "2 Peter",
+                "abbr": "2 Pet"
+            },
+            "fr": {
+                "label": "2 Pierre",
+                "abbr": "2 P"
+            }
+        },
+        "1JN": {
+            "en": {
+                "label": "1 John",
+                "abbr": "1 Jn"
+            },
+            "fr": {
+                "label": "1 Jean",
+                "abbr": "1 Jn"
+            }
+        },
+        "2JN": {
+            "en": {
+                "label": "2 John",
+                "abbr": "2 Jn"
+            },
+            "fr": {
+                "label": "2 Jean",
+                "abbr": "2 Jn"
+            }
+        },
+        "3JN": {
+            "en": {
+                "label": "3 John",
+                "abbr": "3 Jn"
+            },
+            "fr": {
+                "label": "3 Jean",
+                "abbr": "3 Jn"
+            }
+        },
+        "JUD": {
+            "en": {
+                "label": "Jude",
+                "abbr": "Jude"
+            },
+            "fr": {
+                "label": "Jude",
+                "abbr": "Jd"
+            }
+        },
+        "REV": {
+            "en": {
+                "label": "Revelation",
+                "abbr": "Rev"
+            },
+            "fr": {
+                "label": "Apocalypse",
+                "abbr": "Ap"
+            }
+        }
+    }
+}
