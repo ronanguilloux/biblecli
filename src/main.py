@@ -82,12 +82,28 @@ def load_book_mappings():
 
 load_book_mappings()
 
-def load_cross_references():
+OT_BOOKS_CODE = [
+    "GEN", "EXO", "LEV", "NUM", "DEU", "JOS", "JDG", "RUT", "1SA", "2SA",
+    "1KI", "2KI", "1CH", "2CH", "EZR", "NEH", "EST", "JOB", "PSA", "PRO",
+    "ECC", "SNG", "ISA", "JER", "LAM", "EZE", "DAN", "HOS", "JOE", "AMO",
+    "OBA", "JON", "MIC", "NAH", "HAB", "ZEP", "HAG", "ZEC", "MAL"
+]
+
+def load_cross_references(book_code):
     import json
     import os
-    path = os.path.join(GNT_DIR, "data", "cross_references.json")
+    
+    filename = "references_nt_openbible.json"
+    if book_code in OT_BOOKS_CODE:
+        filename = "references_ot_openbible.json"
+        
+    path = os.path.join(GNT_DIR, "data", filename)
     if not os.path.exists(path):
-        return {}
+        # Fallback to the monolithic file if it still exists (for transition)
+        path = os.path.join(GNT_DIR, "data", "references_openbible.json")
+        if not os.path.exists(path):
+            return {}
+            
     try:
         with open(path, "r") as f:
             data = json.load(f)
@@ -477,7 +493,7 @@ NAME
        gnt - A command-line interface for the Greek New Testament (N1904)
 
 SYNOPSIS
-       gnt [COMMAND | REFERENCE] [OPTIONS]
+       gnt [COMMAND | REFERENCE] [ARGS...] [OPTIONS]
 
 DESCRIPTION
        gnt is a tool for reading and searching the Greek New Testament (N1904)
@@ -499,6 +515,9 @@ REFERENCES
        Abbreviations like Mt, Mc, Mk, Lk, Lc, Jn are supported.
 
 OPTIONS
+       -h, --help
+              Show this help message and exit.
+
        -t, --tr [en|fr|gr]
               Specify which translations to display.
               en: English
@@ -508,7 +527,7 @@ OPTIONS
        -c, --crossref
               Display cross-references at verse level.
 
-       --cf
+       -f, --crossref-full
               Display cross-references with related verse text.
 
 EXAMPLES
@@ -539,7 +558,7 @@ def main():
     parser.add_argument("args", nargs="*", help="Arguments for the command")
     parser.add_argument("-t", "--tr", nargs="+", choices=["en", "fr", "gr"], help="Translations to display: 'en' (English), 'fr' (French only), 'gr' (Greek only)")
     parser.add_argument("-c", "--crossref", action="store_true", help="Display cross-references")
-    parser.add_argument("--cf", "--crossref-with-text", action="store_true", help="Display cross-references with verse text")
+    parser.add_argument("-f", "--crossref-full", action="store_true", help="Display cross-references with verse text")
     args = parser.parse_args()
 
     if args.help or not args.command_or_ref:
@@ -592,11 +611,23 @@ def main():
             show_french = False
 
     cross_refs = None
-    show_crossref = args.crossref or args.cf
+    show_crossref = args.crossref or args.crossref_full
     if show_crossref:
-        cross_refs = load_cross_references()
+        # Extract book from first_arg to determine OT/NT
+        book_key = first_arg.split()[0]
+        # Handle "1 Cor", "2 Sam", etc.
+        if book_key in ["1", "2", "3", "I", "II", "III"]:
+            parts = first_arg.split()
+            if len(parts) > 1:
+                book_key = f"{parts[0]} {parts[1]}"
+        
+        # Normalize/resolve abbreviation
+        resolved = ABBREVIATIONS.get(book_key, book_key)
+        book_code = N1904_TO_CODE.get(resolved) or N1904_TO_CODE.get(resolved.replace(" ", "_"))
+        
+        cross_refs = load_cross_references(book_code)
 
-    handle_reference(A, first_arg, show_english, show_greek, show_french, show_crossref, cross_refs, args.cf)
+    handle_reference(A, first_arg, show_english, show_greek, show_french, show_crossref, cross_refs, args.crossref_full)
 
 
 if __name__ == "__main__":
