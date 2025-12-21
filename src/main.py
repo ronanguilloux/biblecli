@@ -89,31 +89,78 @@ OT_BOOKS_CODE = [
     "OBA", "JON", "MIC", "NAH", "HAB", "ZEP", "HAG", "ZEC", "MAL"
 ]
 
-def load_cross_references(book_code):
+def load_cross_references(book_code, source_filter=None):
     import json
     import os
+    import glob
     
-    filename = "references_nt_openbible.json"
+    indexed = {}
+    
+    files_to_load = []
+    
     if book_code in OT_BOOKS_CODE:
-        filename = "references_ot_openbible.json"
-        
-    path = os.path.join(BIBLECLI_DIR, "data", filename)
-    if not os.path.exists(path):
-        # Fallback to the monolithic file if it still exists (for transition)
-        path = os.path.join(BIBLECLI_DIR, "data", "references_openbible.json")
-        if not os.path.exists(path):
-            return {}
+        # Currently no TOB for OT in this setup, or not requested to filter differently usually
+        if source_filter == 'tob':
+            # If user asks for TOB specifically, and we only have OpenBible for OT...
+            # We might just return empty or load nothing if no OT TOB exists.
+            # Assuming TOB is only NT for now based on previous context.
+            files_to_load = [] 
+        else:
+            files_to_load.append("references_ot_openbible.json")
+    else:
+        # NT
+        if source_filter == 'tob':
+             files_to_load = ["references_nt_tob.json"]
+        else:
+            # Load all NT reference files if no specific filter (or if filter is 'all')
+            # If expanding logic later for other sources, can verify here.
+            pattern = os.path.join(BIBLECLI_DIR, "data", "references_nt_*.json")
+            globbed = glob.glob(pattern)
+            if globbed:
+                files_to_load = globbed
+            else:
+                files_to_load.append("references_nt_openbible.json")
             
-    try:
-        with open(path, "r") as f:
-            data = json.load(f)
-        indexed = {}
-        for entry in data.get("cross_references", []):
-            indexed[entry["source"]] = entry["relations"]
-        return indexed
-    except Exception as e:
-        print(f"Warning: Could not load cross-references: {e}")
-        return {}
+    # Load and merge
+    for filename_or_path in files_to_load:
+        if os.path.isabs(filename_or_path):
+            path = filename_or_path
+        else:
+            path = os.path.join(BIBLECLI_DIR, "data", filename_or_path)
+            
+        if not os.path.exists(path):
+            # Fallback for old setup if file missing
+            fallback = os.path.join(BIBLECLI_DIR, "data", "references_openbible.json")
+            if os.path.exists(fallback) and "openbible" in path:
+                path = fallback
+            else:
+                continue
+
+        try:
+            with open(path, "r") as f:
+                data = json.load(f)
+            
+            for entry in data.get("cross_references", []):
+                src = entry["source"]
+                if src not in indexed:
+                    indexed[src] = {"notes": [], "relations": []}
+                
+                # Append notes if present
+                if "notes" in entry and entry["notes"]:
+                    # Avoid duplicates if exactly the same note exists?
+                    # For now just append.
+                    if entry["notes"] not in indexed[src]["notes"]:
+                        indexed[src]["notes"].append(entry["notes"])
+                
+                # Extend relations
+                if "relations" in entry:
+                    indexed[src]["relations"].extend(entry["relations"])
+                    
+        except Exception as e:
+            print(f"Warning: Could not load cross-references from {path}: {e}")
+            
+    return indexed
+
 
 def get_french_text(book_en, chapter_num, verse_num):
     if not API_TOB:
@@ -187,18 +234,29 @@ def format_ref_fr(target_str):
             end_ref = ranges[1]
             
             s_abbr, s_ch, s_vs = parse_one(start_ref)
+            
+            # If end_ref doesn't look like a full ref, try to parse it as just a number
+            if "." not in end_ref:
+                # It's likely just "30" in "MRK.8.29-30" (though TF usually is canonical, my parser produces this)
+                # Or standard TF "BOOK.C.V1-V2" convention? 
+                # Actually TF usually produces "BOOK.C.V" for single verses. 
+                # Range representation varies.
+                if s_abbr:
+                     return f"{s_abbr} {s_ch}:{s_vs}-{end_ref}"
+            
             e_abbr, e_ch, e_vs = parse_one(end_ref)
             
             if s_abbr:
-                if s_abbr == e_abbr and s_ch == e_ch:
+                if e_abbr and s_abbr == e_abbr and s_ch == e_ch:
                     return f"{s_abbr} {s_ch}:{s_vs}-{e_vs}"
-                elif s_abbr == e_abbr:
+                elif e_abbr and s_abbr == e_abbr:
                     return f"{s_abbr} {s_ch}:{s_vs}-{e_ch}:{e_vs}"
-                else:
+                elif e_abbr:
                     return f"{s_abbr} {s_ch}:{s_vs}-{e_abbr} {e_ch}:{e_vs}"
     
     abbr, ch, vs = parse_one(target_str)
     if abbr:
+        # Check if v contains a dash (simple range inside the node string)
         return f"{abbr} {ch}:{vs}"
         
     return target_str
@@ -410,7 +468,18 @@ def print_verse(A, node=None, book_en=None, chapter=None, verse=None, show_engli
             book_code = N1904_TO_CODE.get(book_en) or N1904_TO_CODE.get(book_en.replace(" ", "_"))
             if book_code:
                 source_key = f"{book_code}.{chapter}.{verse}"
-                relations = cross_refs.get(source_key, [])
+                # cross_refs is now: source -> {"notes": [], "relations": []}
+                data = cross_refs.get(source_key, {})
+                relations = data.get("relations", [])
+                notes = data.get("notes", [])
+                
+                # Print Notes First
+                if notes:
+                    print("    Notes:")
+                    for n in notes:
+                        # Wrap text for readability? Assuming terminal handles it or short notes.
+                        print(f"        {n}")
+                    print("") # Spacing
                 
                 def sort_key(rel):
                     target = rel.get("target", "")
@@ -463,8 +532,7 @@ def print_verse(A, node=None, book_en=None, chapter=None, verse=None, show_engli
                             if b_en:
                                 txt = get_french_text(b_en, ch, vs)
                                 if txt: print(f"            {txt}")
-            else:
-                print(f"    {label}: ")
+
 
 def handle_list(A, args):
     api = A.api
@@ -533,6 +601,10 @@ OPTIONS
        -f, --crossref-full
               Display cross-references with related verse text.
 
+       -s, --source [SOURCE]
+              Filter cross-references by source.
+              tob: Show only TOB notes/references.
+
 EXAMPLES
        Display John 1:1 in Greek and French (default):
                biblecli "Jn 1:1"
@@ -552,6 +624,9 @@ EXAMPLES
        Display Romans 1:1 with full cross-reference text:
                biblecli "Rm 1:1" -f
 
+       Display Mark 1:1 with only TOB notes:
+               biblecli "Mk 1:1" -f -s tob
+
        List all books:
                biblecli list books
 
@@ -568,6 +643,7 @@ def main():
     parser.add_argument("-t", "--tr", nargs="+", choices=["en", "fr", "gr"], help="Translations to display: 'en' (English), 'fr' (French only), 'gr' (Greek only)")
     parser.add_argument("-c", "--crossref", action="store_true", help="Display cross-references")
     parser.add_argument("-f", "--crossref-full", action="store_true", help="Display cross-references with verse text")
+    parser.add_argument("-s", "--source", help="Filter cross-references by source (e.g., 'tob')")
     args = parser.parse_args()
 
     if args.help or not args.command_or_ref:
@@ -634,7 +710,7 @@ def main():
         resolved = ABBREVIATIONS.get(book_key, book_key)
         book_code = N1904_TO_CODE.get(resolved) or N1904_TO_CODE.get(resolved.replace(" ", "_"))
         
-        cross_refs = load_cross_references(book_code)
+        cross_refs = load_cross_references(book_code, source_filter=args.source)
 
     handle_reference(A, first_arg, show_english, show_greek, show_french, show_crossref, cross_refs, args.crossref_full)
 
