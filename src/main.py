@@ -461,7 +461,7 @@ def print_verse(A, node=None, book_en=None, chapter=None, verse=None, show_engli
 
     # Cross-references
     if show_crossref:
-        print("––––––––––––––––––––––––––––––––––")
+        print("\n––––––––––")
         groups = {"Parallel": [], "Allusion": [], "Quotation": [], "Other": []}
         
         if cross_refs:
