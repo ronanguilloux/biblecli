@@ -1,0 +1,68 @@
+import pytest
+import sys
+import os
+from unittest.mock import call
+
+# Ensure src is in path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+from reference_handler import ReferenceHandler
+from book_normalizer import BookNormalizer
+
+@pytest.fixture
+def data_dir():
+    return os.path.join(os.path.dirname(__file__), '..', 'data')
+
+@pytest.fixture
+def normalizer(data_dir):
+    return BookNormalizer(data_dir)
+
+@pytest.fixture
+def handler(mock_app, normalizer, mock_printer):
+    return ReferenceHandler(mock_app, normalizer, mock_printer)
+
+def test_single_ref_calls_printer(handler, mock_app, mock_printer):
+    # Setup mock to return a node
+    mock_app.nodeFromSectionStr.return_value = 1001
+    
+    handler.handle_reference("John 1:1")
+    
+    mock_app.nodeFromSectionStr.assert_called_with("John 1:1") # Or normalized
+    # ReferenceHandler standardizes inputs before calling nodeFromSectionStr?
+    # Actually, ReferenceHandler attempts normalize inside?
+    # handle_reference replaces ',' with ':' and checks abbreviations.
+    # "John 1:1" -> "JHN 1:1" via abbreviation load? 
+    # Let's see normalizer.abbreviations.
+    # "John" -> "John" or "JHN"?
+    # In BookNormalizer, "John" maps to "JHN"? No, ABBREVIATIONS maps to internal key (often English label or dedicated key).
+    
+    # Let's rely on what the mock receives.
+    # If logic works, it should call printer.print_verse(node=1001, ...)
+    mock_printer.print_verse.assert_called()
+    assert mock_printer.print_verse.call_args[1]['node'] == 1001
+
+def test_chapter_ref_calls_printer_loop(handler, mock_app, mock_printer):
+    # "John 1"
+    # Logic: 1. Try L.chapter to find chapter node
+    # 2. Iterate verses
+    
+    # Mock finding chapter
+    mock_app.api.F.otype.s.return_value = [500] # list of chapter nodes? No, s is generator
+    mock_app.api.F.book.v.return_value = "John"
+    mock_app.api.F.chapter.v.return_value = 1
+    
+    # We need to ensure logic matches "John" == "John"
+    
+    # If successful, it calls L.d(chapter_node, otype='verse')
+    mock_app.api.L.d.return_value = [1001, 1002, 1003] # verse nodes
+    
+    handler.handle_reference("John 1")
+    
+    assert mock_printer.print_verse.call_count == 3
+    # Check calls
+    expected_calls = [
+        call(node=1001, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False),
+        call(node=1002, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False),
+        call(node=1003, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False)
+    ]
+    mock_printer.print_verse.assert_has_calls(expected_calls)

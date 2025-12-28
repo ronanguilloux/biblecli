@@ -1,0 +1,46 @@
+import pytest
+import sys
+import os
+
+# Ensure src is in path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+from book_normalizer import BookNormalizer
+
+@pytest.fixture
+def data_dir():
+    # Use the real data directory for now to verify integration with the real JSON
+    # In a pure unit test, we would mock the file read.
+    return os.path.join(os.path.dirname(__file__), '..', 'data')
+
+@pytest.fixture
+def normalizer(data_dir):
+    return BookNormalizer(data_dir)
+
+def test_normalization_valid(normalizer):
+    # Test French input
+    res = normalizer.normalize_reference("Mc 1:1")
+    assert res is not None
+    assert res[3] == "MRK.1.1"
+
+    # Test English input
+    res = normalizer.normalize_reference("Mark 1:1")
+    assert res is not None
+    assert res[3] == "MRK.1.1"
+
+    res = normalizer.normalize_reference("John 1:1")
+    assert res is not None
+    assert res[3] == "JHN.1.1"
+
+def test_normalization_with_full_name(normalizer):
+    res = normalizer.normalize_reference("Jean 3:16")
+    assert res is not None
+    assert res[3] == "JHN.3.16"
+
+def test_normalization_invalid(normalizer):
+    res = normalizer.normalize_reference("InvalidBook 1:1")
+    assert res is None
+
+def test_abbreviations_loaded(normalizer):
+    assert "Mc" in normalizer.abbreviations
+    assert "Jn" in normalizer.abbreviations
