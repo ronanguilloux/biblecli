@@ -2,165 +2,29 @@ import sys
 import argparse
 from tf.app import use
 from tf.fabric import Fabric
+import os
+import contextlib
+
+# Import new DB module
+from book_normalizer import BookNormalizer
+from references_db import ReferenceDatabase
+from cli_help import CLIHelp
 
 # TOB Configuration
 BIBLECLI_DIR="/Users/ronan/Documents/Gemini/antigravity/biblecli"
 TOB_DIR = BIBLECLI_DIR+'/tob_tf/TOB/TraductionOecumenique/1.0'
+
+# Initialize Managers
+DATA_DIR = os.path.join(BIBLECLI_DIR, "data")
+normalizer = BookNormalizer(DATA_DIR)
+ref_db = ReferenceDatabase(DATA_DIR, normalizer)
+
 try:
-    import os
-    import contextlib
     with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
         TF_TOB = Fabric(locations=[TOB_DIR], silent=True)
         API_TOB = TF_TOB.load('text book chapter verse', silent=True)
 except Exception as e:
     API_TOB = None
-
-# Mappings populated from data/cross_booknames_fr.json
-N1904_TO_TOB = {}
-N1904_TO_CODE = {}
-CODE_TO_FR_ABBR = {}
-CODE_TO_N1904 = {}
-ABBREVIATIONS = {}
-BOOK_ORDER = {} # Maps book code (e.g. "GEN") to its index in TOB order
-
-def load_book_mappings():
-    global N1904_TO_TOB, N1904_TO_CODE, ABBREVIATIONS, CODE_TO_FR_ABBR, CODE_TO_N1904, BOOK_ORDER
-    import json
-    import os
-    path = os.path.join(BIBLECLI_DIR, "data", "cross_booknames_fr.json")
-    if not os.path.exists(path):
-        return
-    try:
-        with open(path, "r") as f:
-            data = json.load(f)
-        books = data.get("books", {})
-        for i, (code, info) in enumerate(books.items()):
-            BOOK_ORDER[code] = i
-            en_info = info.get("en", {})
-            en_label = en_info.get("label")
-            en_abbr = en_info.get("abbr")
-            
-            # Internal N1904 key (uses Roman numerals for numbered books)
-            en_key = en_label if en_label else ""
-            if en_key.startswith("1 "): en_key = "I_" + en_key[2:]
-            elif en_key.startswith("2 "): en_key = "II_" + en_key[2:]
-            elif en_key.startswith("3 "): en_key = "III_" + en_key[2:]
-            en_key = en_key.replace(" ", "_")
-            
-            fr = info.get("fr", {})
-            fr_label = fr.get("label")
-            fr_abbr = fr.get("abbr")
-            
-            if en_key:
-                N1904_TO_TOB[en_key] = fr_label
-                N1904_TO_CODE[en_key] = code
-                CODE_TO_FR_ABBR[code] = fr_abbr
-                CODE_TO_N1904[code] = en_key
-                
-                # Register English variations
-                ABBREVIATIONS[en_key] = en_key
-                ABBREVIATIONS[code] = en_key # e.g. JHN -> John
-                if en_label: ABBREVIATIONS[en_label] = en_key
-                if en_abbr: 
-                    ABBREVIATIONS[en_abbr] = en_key
-                    # Also register without space for numbered books (e.g. 1Cor)
-                    if " " in en_abbr:
-                        ABBREVIATIONS[en_abbr.replace(" ", "")] = en_key
-                
-            # Register French variations
-            if fr_abbr: 
-                ABBREVIATIONS[fr_abbr] = en_key
-                if " " in fr_abbr:
-                    ABBREVIATIONS[fr_abbr.replace(" ", "")] = en_key
-            if fr_label: ABBREVIATIONS[fr_label] = en_key
-            
-        # Common English extras (fallbacks)
-        for k, v in {"Mk": "Mark", "Lk": "Luke", "Jn": "John"}.items():
-            if k not in ABBREVIATIONS: ABBREVIATIONS[k] = v
-    except Exception as e:
-        print(f"Warning: Could not load book mappings: {e}")
-
-load_book_mappings()
-
-OT_BOOKS_CODE = [
-    "GEN", "EXO", "LEV", "NUM", "DEU", "JOS", "JDG", "RUT", "1SA", "2SA",
-    "1KI", "2KI", "1CH", "2CH", "EZR", "NEH", "EST", "JOB", "PSA", "PRO",
-    "ECC", "SNG", "ISA", "JER", "LAM", "EZE", "DAN", "HOS", "JOE", "AMO",
-    "OBA", "JON", "MIC", "NAH", "HAB", "ZEP", "HAG", "ZEC", "MAL"
-]
-
-def load_cross_references(book_code, source_filter=None):
-    import json
-    import os
-    import glob
-    
-    indexed = {}
-    
-    files_to_load = []
-    
-    if book_code in OT_BOOKS_CODE:
-        # Currently no TOB for OT in this setup, or not requested to filter differently usually
-        if source_filter == 'tob':
-            # If user asks for TOB specifically, and we only have OpenBible for OT...
-            # We might just return empty or load nothing if no OT TOB exists.
-            # Assuming TOB is only NT for now based on previous context.
-            files_to_load = [] 
-        else:
-            files_to_load.append("references_ot_openbible.json")
-    else:
-        # NT
-        if source_filter == 'tob':
-             files_to_load = ["references_nt_tob.json"]
-        else:
-            # Load all NT reference files if no specific filter (or if filter is 'all')
-            # If expanding logic later for other sources, can verify here.
-            pattern = os.path.join(BIBLECLI_DIR, "data", "references_nt_*.json")
-            globbed = glob.glob(pattern)
-            if globbed:
-                files_to_load = globbed
-            else:
-                files_to_load.append("references_nt_openbible.json")
-            
-    # Load and merge
-    for filename_or_path in files_to_load:
-        if os.path.isabs(filename_or_path):
-            path = filename_or_path
-        else:
-            path = os.path.join(BIBLECLI_DIR, "data", filename_or_path)
-            
-        if not os.path.exists(path):
-            # Fallback for old setup if file missing
-            fallback = os.path.join(BIBLECLI_DIR, "data", "references_openbible.json")
-            if os.path.exists(fallback) and "openbible" in path:
-                path = fallback
-            else:
-                continue
-
-        try:
-            with open(path, "r") as f:
-                data = json.load(f)
-            
-            for entry in data.get("cross_references", []):
-                src = entry["source"]
-                if src not in indexed:
-                    indexed[src] = {"notes": [], "relations": []}
-                
-                # Append notes if present
-                if "notes" in entry and entry["notes"]:
-                    # Avoid duplicates if exactly the same note exists?
-                    # For now just append.
-                    if entry["notes"] not in indexed[src]["notes"]:
-                        indexed[src]["notes"].append(entry["notes"])
-                
-                # Extend relations
-                if "relations" in entry:
-                    indexed[src]["relations"].extend(entry["relations"])
-                    
-        except Exception as e:
-            print(f"Warning: Could not load cross-references from {path}: {e}")
-            
-    return indexed
-
 
 def get_french_text(book_en, chapter_num, verse_num):
     if not API_TOB:
@@ -169,10 +33,10 @@ def get_french_text(book_en, chapter_num, verse_num):
     F = API_TOB.F
     L = API_TOB.L
     
-    book_fr = N1904_TO_TOB.get(book_en)
+    book_fr = normalizer.n1904_to_tob.get(book_en)
     if not book_fr:
         # Try direct mapping if not found (e.g. if N1904 uses spaces instead of underscores)
-        book_fr = N1904_TO_TOB.get(book_en.replace(" ", "_"))
+        book_fr = normalizer.n1904_to_tob.get(book_en.replace(" ", "_"))
         
     if not book_fr:
         return f"[TOB: Book '{book_en}' not found]"
@@ -223,7 +87,7 @@ def format_ref_fr(target_str):
             book_code = parts[0]
             chapter = parts[1]
             verse = parts[2]
-            fr_abbr = CODE_TO_FR_ABBR.get(book_code, book_code)
+            fr_abbr = normalizer.code_to_fr_abbr.get(book_code, book_code)
             return fr_abbr, chapter, verse
         return None, None, None
 
@@ -235,12 +99,7 @@ def format_ref_fr(target_str):
             
             s_abbr, s_ch, s_vs = parse_one(start_ref)
             
-            # If end_ref doesn't look like a full ref, try to parse it as just a number
             if "." not in end_ref:
-                # It's likely just "30" in "MRK.8.29-30" (though TF usually is canonical, my parser produces this)
-                # Or standard TF "BOOK.C.V1-V2" convention? 
-                # Actually TF usually produces "BOOK.C.V" for single verses. 
-                # Range representation varies.
                 if s_abbr:
                      return f"{s_abbr} {s_ch}:{s_vs}-{end_ref}"
             
@@ -256,7 +115,6 @@ def format_ref_fr(target_str):
     
     abbr, ch, vs = parse_one(target_str)
     if abbr:
-        # Check if v contains a dash (simple range inside the node string)
         return f"{abbr} {ch}:{vs}"
         
     return target_str
@@ -271,29 +129,24 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
     # Normalize reference
     ref_str = ref_str.replace(',', ':')
     
-    # Book abbreviations are now global
-    global ABBREVIATIONS
-    
     # Check if reference starts with any abbreviation
-    # Check for abbreviation (can be 1 or 2 words, e.g. "Jn" or "1 Cor")
     parts = ref_str.split()
     if len(parts) >= 2:
         two_word_abbr = f"{parts[0]} {parts[1]}"
-        if two_word_abbr in ABBREVIATIONS:
-            ref_str = f"{ABBREVIATIONS[two_word_abbr]} {' '.join(parts[2:])}"
-            parts = ref_str.split() # refresh parts
-        elif parts[0] in ABBREVIATIONS:
-            ref_str = f"{ABBREVIATIONS[parts[0]]} {' '.join(parts[1:])}"
-            parts = ref_str.split() # refresh parts
+        if two_word_abbr in normalizer.abbreviations:
+            ref_str = f"{normalizer.abbreviations[two_word_abbr]} {' '.join(parts[2:])}"
+            parts = ref_str.split() 
+        elif parts[0] in normalizer.abbreviations:
+            ref_str = f"{normalizer.abbreviations[parts[0]]} {' '.join(parts[1:])}"
+            parts = ref_str.split() 
     elif len(parts) == 1:
-        if parts[0] in ABBREVIATIONS:
-            ref_str = ABBREVIATIONS[parts[0]]
+        if parts[0] in normalizer.abbreviations:
+            ref_str = normalizer.abbreviations[parts[0]]
             parts = [ref_str]
 
     try:
         # Check if it's a range (e.g., "Luke 1:4-7")
         if "-" in ref_str and ":" in ref_str:
-            # Assume format "Book Chapter:Start-End"
             last_colon_idx = ref_str.rfind(":")
             if last_colon_idx != -1:
                 book_chapter = ref_str[:last_colon_idx]
@@ -304,10 +157,9 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
                     start_v = int(start_v)
                     end_v = int(end_v)
                     
-                    # Try to separate book and chapter for clearer output
                     if ' ' in book_chapter:
                         book, chapter = book_chapter.rsplit(' ', 1)
-                        book_fr= N1904_TO_TOB.get(book)
+                        book_fr= normalizer.n1904_to_tob.get(book)
                         if not book_fr: book_fr = book
                         print(f"\n{book_fr} {chapter}:{start_v}-{end_v}")
                     else:
@@ -321,7 +173,6 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
                         if node and isinstance(node, int):
                             print_verse(A, node=node, show_english=show_english, show_greek=show_greek, show_french=show_french, show_crossref=show_crossref, cross_refs=cross_refs, show_crossref_text=show_crossref_text)
                         else:
-                            # Fallback for OT or missing verses
                             if ' ' in book_chapter:
                                 b, c = book_chapter.rsplit(' ', 1)
                                 print_verse(A, book_en=b, chapter=c, verse=v_num, show_english=show_english, show_greek=show_greek, show_french=show_french, show_crossref=show_crossref, cross_refs=cross_refs, show_crossref_text=show_crossref_text)
@@ -337,25 +188,21 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
                 try:
                     chapter_num = int(parts[1])
                     
-                    # Find all verses in this chapter
-                    book_fr = N1904_TO_TOB.get(book_name)
+                    book_fr = normalizer.n1904_to_tob.get(book_name)
                     if not book_fr: book_fr = book_name
                     print(f"\n{book_fr} {chapter_num}")
                     
-                    # Find the chapter node
                     chapter_nodes = [n for n in F.otype.s('chapter') 
                                     if F.book.v(n) == book_name and F.chapter.v(n) == chapter_num]
                     
                     if chapter_nodes:
                         chapter_node = chapter_nodes[0]
-                        # Get all verse nodes in this chapter
                         verse_nodes = L.d(chapter_node, otype='verse')
                         
                         for verse_node in verse_nodes:
                             print_verse(A, node=verse_node, show_english=show_english, show_greek=show_greek, show_french=show_french, show_crossref=show_crossref, cross_refs=cross_refs, show_crossref_text=show_crossref_text)
                         return
                     else:
-                        # Fallback for OT: we don't know number of verses, so we look them up until failure
                         if API_TOB:
                             v = 1
                             found_any = False
@@ -372,7 +219,7 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
                         print(f"Could not find chapter: {ref_str}")
                         return
                 except ValueError:
-                    pass  # Not a valid chapter number, continue to fallback
+                    pass  
         
         # Fallback to single reference lookup
         node = A.nodeFromSectionStr(ref_str)
@@ -380,7 +227,6 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
         if node and isinstance(node, int):
             print_verse(A, node=node, show_english=show_english, show_greek=show_greek, show_french=show_french, show_crossref=show_crossref, cross_refs=cross_refs, show_crossref_text=show_crossref_text)
         else:
-            # Final attempt: manual parse for single verse (e.g. "Is 40:3")
             if ":" in ref_str and " " in ref_str:
                 parts = ref_str.rsplit(' ', 1)
                 book_name = parts[0]
@@ -398,10 +244,7 @@ def handle_reference(A, ref_str, show_english=False, show_greek=True, show_frenc
             print(f"Could not find reference: {ref_str}")
             
     except Exception as e:
-        import traceback
-        # print(f"DEBUG: ref_str='{ref_str}'")
         print(f"Error processing reference: {e}")
-        # traceback.print_exc()
 
 def print_verse(A, node=None, book_en=None, chapter=None, verse=None, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False):
     api = A.api
@@ -415,13 +258,12 @@ def print_verse(A, node=None, book_en=None, chapter=None, verse=None, show_engli
         chapter = int(section[1])
         verse = int(section[2])
     else:
-        # manual values provided
         chapter = int(chapter)
         verse = int(verse)
 
-    book_fr = N1904_TO_TOB.get(book_en)
+    book_fr = normalizer.n1904_to_tob.get(book_en)
     if not book_fr:
-        book_fr = N1904_TO_TOB.get(book_en.replace(" ", "_"))
+        book_fr = normalizer.n1904_to_tob.get(book_en.replace(" ", "_"))
     if not book_fr:
         book_fr = book_en
     
@@ -429,9 +271,6 @@ def print_verse(A, node=None, book_en=None, chapter=None, verse=None, show_engli
     if node:
         print(f"\n{book_fr} {chapter}:{verse}")
     else:
-        # Only print header if manual (loop handles chapter header elsewhere)
-        # But for consistency, let's print it here too if not already printed.
-        # Actually handle_reference prints headers for ranges.
         print(f"\n{book_fr} {chapter}:{verse}")
 
     # Greek text
@@ -456,7 +295,7 @@ def print_verse(A, node=None, book_en=None, chapter=None, verse=None, show_engli
         french_text = get_french_text(book_en, chapter, verse)
         if french_text and not french_text.startswith("[TOB:"):
             print(f"{french_text}")
-        elif french_text and node: # Only print if it was expected (node exists)
+        elif french_text and node:
              print(f"{french_text}")
 
     # Cross-references
@@ -465,26 +304,30 @@ def print_verse(A, node=None, book_en=None, chapter=None, verse=None, show_engli
         groups = {"Parallel": [], "Allusion": [], "Quotation": [], "Other": []}
         
         if cross_refs:
-            book_code = N1904_TO_CODE.get(book_en) or N1904_TO_CODE.get(book_en.replace(" ", "_"))
+            book_code = normalizer.n1904_to_code.get(book_en) or normalizer.n1904_to_code.get(book_en.replace(" ", "_"))
             if book_code:
+                # Retrieve references from the standardized DB subset (passed as cross_refs dict)
+                # Key format in cross_refs (from ReferenceDatabase.get_references) is "BOOK.C.V"
                 source_key = f"{book_code}.{chapter}.{verse}"
-                # cross_refs is now: source -> {"notes": [], "relations": []}
+                
+                # We need to access the structure: { "source_key": { "notes": [], "relations": [] } }
+                # Note: load_cross_references previously merged everything into a single dict keyed by source.
+                # ReferencesDatabase.get_references returns a filtered dict with the same structure.
+                
                 data = cross_refs.get(source_key, {})
                 relations = data.get("relations", [])
                 notes = data.get("notes", [])
                 
-                # Print Notes First
                 if notes:
                     print("    Notes:")
                     for n in notes:
-                        # Wrap text for readability? Assuming terminal handles it or short notes.
                         print(f"        {n}")
-                    print("") # Spacing
+                    print("") 
                 
                 def sort_key(rel):
                     target = rel.get("target", "")
                     t_book = target.split(".")[0] if "." in target else ""
-                    order = BOOK_ORDER.get(t_book, 999)
+                    order = normalizer.book_order.get(t_book, 999)
                     try:
                         parts = target.split(".")
                         ch = int(parts[1]) if len(parts) > 1 else 0
@@ -516,25 +359,24 @@ def print_verse(A, node=None, book_en=None, chapter=None, verse=None, show_engli
                                 start_p = parts[0].split(".")
                                 end_p = parts[1].split(".")
                                 
-                                # Case 1: Full ref to full ref (e.g. MRK.1.1-MRK.1.5)
+                                # Case 1: Full ref to full ref
                                 if len(start_p) == 3 and len(end_p) == 3:
                                     b_code = start_p[0]
                                     ch = int(start_p[1])
                                     s_v = int(start_p[2])
                                     e_v = int(end_p[2])
-                                    # Assuming same book and chapter for simple display logic
                                     if b_code == end_p[0] and ch == int(end_p[1]):
                                         for v in range(s_v, e_v + 1):
                                             refs_to_fetch.append((b_code, ch, v))
 
-                                # Case 2: Full ref to verse only (e.g. MRK.1.1-5)
+                                # Case 2: Full ref to verse only
                                 elif len(start_p) == 3 and len(end_p) == 1:
                                      b_code = start_p[0]
                                      ch = int(start_p[1])
                                      s_v = int(start_p[2])
                                      try:
                                          e_v = int(end_p[0])
-                                         if e_v >= s_v: # Basic sanity check
+                                         if e_v >= s_v:
                                              for v in range(s_v, e_v + 1):
                                                  refs_to_fetch.append((b_code, ch, v))
                                      except ValueError:
@@ -545,7 +387,7 @@ def print_verse(A, node=None, book_en=None, chapter=None, verse=None, show_engli
                                 refs_to_fetch.append((parts[0], int(parts[1]), int(parts[2])))
                         
                         for b_code, ch, vs in refs_to_fetch:
-                            b_en = CODE_TO_N1904.get(b_code)
+                            b_en = normalizer.code_to_n1904.get(b_code)
                             if b_en:
                                 txt = get_french_text(b_en, ch, vs)
                                 if txt: print(f"            {txt}")
@@ -570,104 +412,64 @@ def handle_list(A, args):
     else:
         print(f"Unknown list command: {subcommand}")
 
-def print_help():
-    help_text = """
-GNT(1)                       Bible CLI Manual                       GNT(1)
+def handle_add(args):
+    # args matches the structure added in main: collection, source, target, type, note
+    try:
+        ref_db.add_relation(
+            collection_name=args.collection,
+            source_ref=args.source,
+            target_ref=args.target,
+            rel_type=args.type,
+            note=args.note
+        )
+        print(f"Successfully added reference to {args.collection}:")
+        print(f"  Source: {args.source}")
+        print(f"  Target: {args.target}")
+        print(f"  Type:   {args.type}")
+        print(f"  Note:   {args.note}")
+    except ValueError as e:
+        print(f"Error adding reference: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
 
-NAME
-       biblecli - A command-line interface for the Greek New Testament (N1904)
 
-SYNOPSIS
-       biblecli [COMMAND | REFERENCE] [ARGS...] [OPTIONS]
 
-DESCRIPTION
-       biblecli is a tool for reading and searching the Greek New Testament (N1904)
-       along with English and French (TOB) translations.
-
-       If no translation is specified, Greek and French are shown by default.
-
-COMMANDS
-       list books
-              List all available books in the N1904 dataset.
-
-       search [QUERY] (Coming soon)
-              Search for specific terms in the New Testament.
-
-REFERENCES
-       References can be specified in various formats:
-       - Single verse: "Jn 1:1" or "Jean 1:1"
-       - Verse range: "Mt 5:1-10"
-       - Whole chapter: "Mk 4"
-
-       Abbreviations like Mt, Mc, Mk, Lk, Lc, Jn are supported.
-
-OPTIONS
-       -h, --help
-              Show this help message and exit.
-
-       -t, --tr [en|fr|gr]
-              Specify which translations to display. Multiple values can be
-              provided (e.g., -t en fr).
-              en: English
-              fr: French (TOB)
-              gr: Greek (N1904)
-
-       -c, --crossref
-              Display cross-references at verse level.
-
-       -f, --crossref-full
-              Display cross-references with related verse text.
-
-       -s, --source [SOURCE]
-              Filter cross-references by source.
-              tob: Show only TOB notes/references.
-
-EXAMPLES
-       Display John 1:1 in Greek and French (default):
-               biblecli "Jn 1:1"
-
-       Display Matthew 5:1-10 with English translation:
-               biblecli "Mt 5:1-10" -t en
-
-       Display Mark chapter 4 in Greek only:
-               biblecli "Mk 4" -t gr
-
-       Display John 1:1 with French and English:
-               biblecli "Jn 1:1" -t fr en
-
-       Display John 1:1 with cross-references:
-               biblecli "Jn 1:1" --crossref
-
-       Display Romans 1:1 with full cross-reference text:
-               biblecli "Rm 1:1" -f
-
-       Display Mark 1:1 with only TOB notes:
-               biblecli "Mk 1:1" -f -s tob
-
-       List all books:
-               biblecli list books
-
-AUTHOR
-       Written by Ronan Guilloux and the Gemini Team.
-"""
-    print(help_text)
 
 def main():
     parser = argparse.ArgumentParser(description="N1904 CLI Tool", add_help=False)
     parser.add_argument("-h", "--help", action="store_true", help="Show this help message and exit")
-    parser.add_argument("command_or_ref", nargs="?", help="Command (e.g., 'search', 'list') or Bible reference (e.g., 'Mk 1,1')")
+    
+    # We use a subparser strategy or manual parse to handle "add" vs valid refs
+    # Beacuse "add" has specific required args, let's peek at argv[1]
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "add":
+        # Sub-parser for add command
+        add_parser = argparse.ArgumentParser(description="Add reference")
+        add_parser.add_argument("command", choices=["add"])
+        add_parser.add_argument("-c", "--collection", required=True, help="Collection name (e.g. nt_ronan)")
+        add_parser.add_argument("-s", "--source", required=True, help="Source reference (e.g. 'Mc 1:1')")
+        add_parser.add_argument("-t", "--target", required=True, help="Target reference (e.g. 'Lc 1:1')")
+        add_parser.add_argument("--type", default="other", help="Relation type (parallel, allusion, quotation, other)")
+        add_parser.add_argument("-n", "--note", default="", help="Note for the relation")
+        
+        args = add_parser.parse_args(sys.argv[1:])
+        handle_add(args)
+        return
+
+    # Standard parser for other commands
+    parser.add_argument("command_or_ref", nargs="?", help="Command or Bible reference")
     parser.add_argument("args", nargs="*", help="Arguments for the command")
-    parser.add_argument("-t", "--tr", nargs="+", choices=["en", "fr", "gr"], help="Translations to display: 'en' (English), 'fr' (French only), 'gr' (Greek only)")
+    parser.add_argument("-t", "--tr", nargs="+", choices=["en", "fr", "gr"], help="Translations")
     parser.add_argument("-c", "--crossref", action="store_true", help="Display cross-references")
-    parser.add_argument("-f", "--crossref-full", action="store_true", help="Display cross-references with verse text")
-    parser.add_argument("-s", "--source", help="Filter cross-references by source (e.g., 'tob')")
+    parser.add_argument("-f", "--crossref-full", action="store_true", help="Display cross-references with text")
+    parser.add_argument("-s", "--source", help="Filter cross-references by source")
+    
     args = parser.parse_args()
 
     if args.help or not args.command_or_ref:
-        print_help()
+        CLIHelp().print_usage()
         return
 
-    # Determine if first argument is a command or a reference
     first_arg = args.command_or_ref
     
     if first_arg == "search":
@@ -675,8 +477,6 @@ def main():
         return
     
     if first_arg == "list":
-        # Load TF for list command
-       #  print(f"Loading N1904 data... (this may take a while on first run)")
         try:
             A = use("CenterBLC/N1904", version="1.0.0", silent=True)
         except Exception as e:
@@ -686,10 +486,8 @@ def main():
         handle_list(A, args.args)
         return
 
-    # If not a command, treat as reference (load TF)
+    # Load TF
     try:
-        import os
-        import contextlib
         with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
             A = use("CenterBLC/N1904", version="1.0.0", silent=True)
     except Exception as e:
@@ -701,37 +499,31 @@ def main():
     show_french = True
     
     if args.tr:
-        if "en" in args.tr:
-            show_english = True
-        if "fr" in args.tr:
-            # Show only French
-            show_greek = False
-            show_french = True
-        if "gr" in args.tr:
-            # Show only Greek
-            show_greek = True
-            show_french = False
+        if "en" in args.tr: show_english = True
+        if "fr" in args.tr: show_greek = False; show_french = True
+        if "gr" in args.tr: show_greek = True; show_french = False
 
     cross_refs = None
     show_crossref = args.crossref or args.crossref_full
     if show_crossref:
-        # Extract book from first_arg to determine OT/NT
         book_key = first_arg.split()[0]
-        # Handle "1 Cor", "2 Sam", etc.
         if book_key in ["1", "2", "3", "I", "II", "III"]:
-            parts = first_arg.split()
-            if len(parts) > 1:
-                book_key = f"{parts[0]} {parts[1]}"
+             parts = first_arg.split()
+             if len(parts) > 1:
+                 book_key = f"{parts[0]} {parts[1]}"
         
-        # Normalize/resolve abbreviation
-        resolved = ABBREVIATIONS.get(book_key, book_key)
-        book_code = N1904_TO_CODE.get(resolved) or N1904_TO_CODE.get(resolved.replace(" ", "_"))
+        resolved = normalizer.abbreviations.get(book_key, book_key)
+        book_code = normalizer.n1904_to_code.get(resolved) or normalizer.n1904_to_code.get(resolved.replace(" ", "_"))
         
-        cross_refs = load_cross_references(book_code, source_filter=args.source)
+        ref_db.load_all(source_filter=args.source)
+        # Pass the full DB? No, handle_reference expects a filtered subset or the full dict?
+        # get_references returns the subset for the book to optimize lookup if needed, 
+        # or we can pass ref_db.in_memory_refs directly.
+        # Originally load_cross_references returned a dict. 
+        # ref_db.in_memory_refs is that dict.
+        cross_refs = ref_db.in_memory_refs
 
     handle_reference(A, first_arg, show_english, show_greek, show_french, show_crossref, cross_refs, args.crossref_full)
 
-
 if __name__ == "__main__":
     main()
-
