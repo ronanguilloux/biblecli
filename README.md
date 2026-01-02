@@ -69,9 +69,9 @@ The tool uses the Text-Fabric library to manage Bible datasets.
 ### 2. French TOB Data (Manual Setup, personal copy required)
 Due to copyright restrictions, the **Traduction Œcumenique de la Bible (TOB)** text is **not included** and cannot be automatically downloaded.
 
-To view French text, you must:
+To add and display the TOB French text, you must:
 1.  **Acquire a personal copy** of the TOB (e.g., from a personal PDF or e-book).
-2.  **Convert it** to a Text-Fabric compatible format. Extract text using Python libraries like `PyPDF` or `BeautifulSoup`. Use a tool like **TF Fabricator** to parse your source text and generate the TF files.
+2.  **Convert it** to a Text-Fabric compatible format. Extract text using Python libraries like `PyPDF` or `BeautifulSoup`. Use a tool like [**TF Fabricator**](ADD_SOURCES.md) to parse your source text and generate the TF files.
 3.  **Install it locally**:
     -   Create a directory: `mkdir -p ~/text-fabric-data/TOB/1.0`
     -   Place your generated TF files (e.g., `otype.tf`, `book.tf`, `chapter.tf`, `verse.tf`, `text.tf`, etc.) into this directory.
