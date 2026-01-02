@@ -44,9 +44,9 @@ Show only English:
 biblecli "Jn 3:16" -t en
 ```
 
-Show both English and French:
+Show both English, French and ancient Greek:
 ```sh
-biblecli "Jn 3:16" -t en fr
+biblecli "Jn 3:16" -t en fr gr
 ```
 
 ### Cross-references

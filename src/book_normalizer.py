@@ -8,6 +8,7 @@ class BookNormalizer:
         self.n1904_to_tob = {}
         self.n1904_to_code = {}
         self.code_to_fr_abbr = {}
+        self.code_to_en_abbr = {}
         self.code_to_n1904 = {}
         self.book_order = {}
         self._load_mappings()
@@ -44,6 +45,7 @@ class BookNormalizer:
                     self.n1904_to_tob[en_key] = fr_label
                     self.n1904_to_code[en_key] = code
                     self.code_to_fr_abbr[code] = fr_abbr
+                    self.code_to_en_abbr[code] = en_abbr
                     self.code_to_n1904[code] = en_key
                     
                     # Register English variations
@@ -65,6 +67,23 @@ class BookNormalizer:
             # Common English extras (fallbacks)
             for k, v in {"Mk": "Mark", "Lk": "Luke", "Jn": "John"}.items():
                 if k not in self.abbreviations: self.abbreviations[k] = v
+
+            # Manual overrides for LXX/Rahlfs naming conventions that differ from standard
+            lxx_overrides = {
+                "Exod": "EXO",
+                "1Sam": "1SA", 
+                "2Sam": "2SA",
+                "1Kgs": "1KI",
+                "2Kgs": "2KI",
+                "1Chr": "1CH",
+                "2Chr": "2CH",
+                "Qoh": "ECC",
+                "Cant": "SNG"
+            }
+            for lxx_abbr, code in lxx_overrides.items():
+                if code in self.code_to_n1904:
+                    canonical = self.code_to_n1904[code]
+                    self.abbreviations[lxx_abbr] = canonical
 
         except Exception as e:
             print(f"Warning: Could not load book mappings: {e}")
@@ -134,8 +153,8 @@ class BookNormalizer:
              except ValueError:
                  pass
         
-        if chapter > 0 and verse > 0:
-            std_str = f"{book_code}.{chapter}.{verse}"
+        if chapter > 0:
+            std_str = f"{book_code}.{chapter}.{verse}" if verse > 0 else f"{book_code}.{chapter}"
             return (book_code, chapter, verse, std_str)
         
         return None

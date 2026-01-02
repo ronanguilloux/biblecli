@@ -1,7 +1,8 @@
 class VersePrinter:
-    def __init__(self, tob_api, n1904_app, normalizer, reference_db):
+    def __init__(self, tob_api, n1904_app, lxx_app, normalizer, reference_db):
         self.tob_api = tob_api
         self.app = n1904_app
+        self.lxx = lxx_app
         self.normalizer = normalizer
         self.ref_db = reference_db
 
@@ -12,7 +13,19 @@ class VersePrinter:
         F = self.tob_api.F
         L = self.tob_api.L
         
+        # Normalize book_en to ensure we match the keys in n1904_to_tob
         book_fr = self.normalizer.n1904_to_tob.get(book_en)
+        
+        if not book_fr:
+            # Try to find code
+            book_code = self.normalizer.n1904_to_code.get(book_en) or \
+                        self.normalizer.n1904_to_code.get(self.normalizer.abbreviations.get(book_en, ""))
+                        
+            if book_code:
+                en_key = self.normalizer.code_to_n1904.get(book_code)
+                if en_key:
+                    book_fr = self.normalizer.n1904_to_tob.get(en_key)
+
         if not book_fr:
             # Try direct mapping if not found (e.g. if N1904 uses spaces instead of underscores)
             book_fr = self.normalizer.n1904_to_tob.get(book_en.replace(" ", "_"))
@@ -98,11 +111,14 @@ class VersePrinter:
             
         return target_str
 
-    def print_verse(self, node=None, book_en=None, chapter=None, verse=None, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False):
-        if not self.app:
+    def print_verse(self, node=None, book_en=None, chapter=None, verse=None, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False, source_app=None):
+        if not source_app:
+            source_app = self.app
+            
+        if not source_app:
             return
             
-        api = self.app.api
+        api = source_app.api
         T = api.T
         F = api.F
         L = api.L
@@ -116,9 +132,35 @@ class VersePrinter:
             chapter = int(chapter)
             verse = int(verse)
 
-        book_fr = self.normalizer.n1904_to_tob.get(book_en)
+        # Try to resolve book_fr using normalizer logic if direct key fails
+        # 'book_en' might be 'Gen' (LXX) or 'Genesis' or 'MAT'
+        # 1. Try resolving to code first, then to French label
+        book_code = self.normalizer.n1904_to_code.get(book_en)
+        if not book_code:
+             # Try abbreviations
+             canon = self.normalizer.abbreviations.get(book_en)
+             if canon:
+                 book_code = self.normalizer.n1904_to_code.get(canon)
+        
+        book_fr = None
+        if book_code:
+            # Reconstruct from code -> n1904 -> tob
+            # Or use code_to_fr_abbr? TOB usually matches French Label in TF?
+            # get_french_text lookup logic uses n1904_to_tob.
+            # But let's check if we can get the label directly from mapping?
+            # Actually, standard lookup uses n1904_to_tob which maps En Key -> Fr Label
+            
+            # Let's try to get the standard English key first
+            en_key = self.normalizer.code_to_n1904.get(book_code)
+            if en_key:
+                book_fr = self.normalizer.n1904_to_tob.get(en_key)
+        
+        # Fallback to direct lookup if code path failed
+        if not book_fr:
+            book_fr = self.normalizer.n1904_to_tob.get(book_en)
         if not book_fr:
             book_fr = self.normalizer.n1904_to_tob.get(book_en.replace(" ", "_"))
+            
         if not book_fr:
             book_fr = book_en
         
@@ -131,8 +173,8 @@ class VersePrinter:
             if greek_text and greek_text.strip():
                 print(f"{greek_text}")
         
-        # English translation
-        if show_english and node:
+        # English translation (Only for N1904 source currently)
+        if show_english and node and source_app == self.app:
             words = L.d(node, otype='word')
             english_text = []
             for w in words:

@@ -44,3 +44,18 @@ def test_normalization_invalid(normalizer):
 def test_abbreviations_loaded(normalizer):
     assert "Mc" in normalizer.abbreviations
     assert "Jn" in normalizer.abbreviations
+
+def test_lxx_abbreviations_lookup(normalizer):
+    # Verify that LXX-specific abbreviations are resolved
+    lxx_cases = {
+        "2Kgs": "2KI",
+        "1Kgs": "1KI",
+        "Exod": "EXO",
+        "Qoh": "ECC",
+        "Cant": "SNG"
+    }
+    
+    for abbr, expected_code in lxx_cases.items():
+        res = normalizer.normalize_reference(f"{abbr} 1:1")
+        assert res is not None, f"Failed to normalize {abbr}"
+        assert res[0] == expected_code, f"Expected {expected_code} for {abbr}, got {res[0]}"

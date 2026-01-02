@@ -31,6 +31,63 @@ except Exception as e:
 # Global Printer (initialized in main or dynamically)
 printer = None
 
+class OfflineLXXApp:
+    def __init__(self, api, normalizer):
+        self.api = api
+        self.normalizer = normalizer
+        # Manual overrides for LXX naming conventions (Rahlfs 1935 vs Standard)
+        self.lxx_overrides = {
+            "EXO": "Exod",
+            "1SA": "1Sam",
+            "2SA": "2Sam",
+            "1KI": "1Kgs",
+            "2KI": "2Kgs",
+            "1CH": "1Chr",
+            "2CH": "2Chr",
+            "ECC": "Qoh",
+            "SNG": "Cant"
+        }
+        
+    def nodeFromSectionStr(self, ref_str):
+        # We need to parse ref_str -> Book, Chapter, Verse
+        # ReferenceHandler typically passes things like "Genesis 1:1"
+        try:
+            # Use normalizer to get code
+            norm = self.normalizer.normalize_reference(ref_str)
+            if not norm:
+                return None
+            
+            code, ch, vs, _ = norm
+            
+            # LXX uses abbreviations like "Gen"
+            # Try override first
+            abbr = self.lxx_overrides.get(code)
+            
+            # Fallback to standard abbr from normalizer if not valid
+            if not abbr:
+                abbr = self.normalizer.code_to_en_abbr.get(code)
+            
+            if not abbr:
+                return None
+                
+            # Attempt lookup
+            # T.nodeFromSection expects tuple
+            # If vs is 0, we want the chapter node? Or first verse?
+            # Standard TF nodeFromSection returns Chapter node if input is (Book, Chapter).
+            
+            if vs > 0:
+                node = self.api.T.nodeFromSection((abbr, ch, vs))
+            elif ch > 0:
+                node = self.api.T.nodeFromSection((abbr, ch))
+            else:
+                 node = self.api.T.nodeFromSection((abbr,))
+                 
+            return node
+            
+        except Exception as e:
+            # print(f"OfflineLXX lookup error: {e}")
+            return None
+
 
 def handle_list(A, args):
     api = A.api
@@ -129,8 +186,25 @@ def main():
     try:
         with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
             A = use("CenterBLC/N1904", version="1.0.0", silent=True)
+            
+            # Load LXX (Manual Offline Priority)
+            lxx_path = os.path.expanduser("~/text-fabric-data/github/CenterBLC/LXX/tf/1935")
+            if os.path.exists(lxx_path):
+                 try:
+                     TF_LXX = Fabric(locations=[lxx_path])
+                     API_LXX = TF_LXX.load("", silent=True)
+                     LXX = OfflineLXXApp(API_LXX, normalizer)
+                 except Exception:
+                     LXX = None
+            else:
+                 # Try online as fallback (unlikely to work if rate limited)
+                 try:
+                     LXX = use("CenterBLC/LXX", version="1935", check=False, silent=True)
+                 except Exception:
+                     LXX = None
+
     except Exception as e:
-        print(f"Error loading N1904: {e}")
+        print(f"Error loading apps (N1904/LXX): {e}")
         sys.exit(1)
 
     show_english = False
@@ -140,10 +214,10 @@ def main():
     # Initialize global printer
     # Initialize global printer
     global printer
-    printer = VersePrinter(API_TOB, A, normalizer, ref_db)
+    printer = VersePrinter(API_TOB, A, LXX, normalizer, ref_db)
     
     # Initialize Handler
-    handler = ReferenceHandler(A, normalizer, printer)
+    handler = ReferenceHandler(A, LXX, normalizer, printer)
     
     if args.tr:
         if "en" in args.tr: show_english = True
