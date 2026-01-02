@@ -2,6 +2,35 @@
 
 A command-line interface for reading Greek (N1904), Hebrew (BHSA), English, and French (TOB) verses.
 
+# In a nutshell
+
+Display a verse from (as default)
+- the Masoretic Hebrew (Biblia Hebraica Stuttgartensia),
+- plus the Greek *Septuaginta* (LXX),
+- plus the French TOB:
+
+```sh
+biblecli "Gn 1:1" --tr gr hb fr
+```
+Output:
+```
+Genesis 1:1
+בְּ רֵאשִׁ֖ית בָּרָ֣א אֱלֹהִ֑ים אֵ֥ת הַ שָּׁמַ֖יִם וְ אֵ֥ת הָ אָֽרֶץ
+ἐν ἀρχῇ ἐποίησεν ὁ θεὸς τὸν οὐρανὸν καὶ τὴν γῆν 
+Au commencement, Dieu créa le ciel et la terre.
+```
+
+
+# Installation
+
+```sh
+git clone git@github.com:ronanguilloux/biblecli.git
+cd biblecli
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
 ## Post-installation
 
 Add `biblecli` to your `$PATH` in your shell config file (e.g. `.zshrc`, `.bashrc`, `.bash_profile`):
@@ -26,7 +55,7 @@ The tool uses the Text-Fabric library to manage Bible datasets.
         └── bhsa/tf/[version]/    # Hebrew Masoretic Text
 ```
 
-### 2. French TOB Data (Manual Setup and  Required)
+### 2. French TOB Data (Manual Setup, personal copy required)
 Due to copyright restrictions, the **Traduction Œcumenique de la Bible (TOB)** text is **not included** and cannot be automatically downloaded.
 
 To view French text, you must:
@@ -47,26 +76,13 @@ The expected structure is:
     └── ...
 ```
 
+Same exact logic if you were to use a copy of the *Bible de Jérusalem* (EBAF/CERF, ISBN 978-2204115919) or any another Bible in another language.
+
 ## Usage
 
 You can use the `biblecli` script to execute commands. It will automatically set up the environment if needed.
 
 ### Basic Commands
-
-Display an Old Testament verse from (as default)
-- the Masoretic Hebrew (Biblia Hebraica Stuttgartensia),
-- the Greek Old testament (Septuaginta, 'LXX'),
-- and French TOB:
-```sh
-biblecli "Gn 1:1" --tr gr hb fr
-```
-Output:
-```
-Genesis 1:1
-בְּ רֵאשִׁ֖ית בָּרָ֣א אֱלֹהִ֑ים אֵ֥ת הַ שָּׁמַ֖יִם וְ אֵ֥ת הָ אָֽרֶץ
-ἐν ἀρχῇ ἐποίησεν ὁ θεὸς τὸν οὐρανὸν καὶ τὴν γῆν 
-Au commencement, Dieu créa le ciel et la terre.
-```
 
 Display a New Testament verse from
 - Greek New Testament (Nestle 1904),
@@ -222,23 +238,6 @@ Many common abbreviations are supported in both English and French:
 - `Mt`, `Matt`, `Matthieu`, `Matthew`
 - `Jn`, `Jean`, `John`
 - etc.
-
-## Manual Setup
-
-If you prefer to run `src/main.py` directly, you must install the dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Or use a virtual environment:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python3 src/main.py "Jn 3:16"
-```
 
 ## Development
 
