@@ -48,6 +48,7 @@ SOURCE_JSON = 'my_bible.json'
 TF_OUTPUT_DIR = os.path.expanduser('~/text-fabric-data/my_bible/1.0')
 
 # 2. METADATA: Describe your dataset
+slot_type = 'word'
 generic_metadata = {
     'title': 'My Custom Bible Translation',
     'language': 'fra',
@@ -96,7 +97,7 @@ def director(cv):
 cv = CV()
 cv.walk(
     director, 
-    'word', 
+    slot_type, 
     otext=otext, 
     generic=generic_metadata, 
     outputDir=TF_OUTPUT_DIR
@@ -117,14 +118,22 @@ Once the script finishes, you can load your custom dataset alongside others:
 
 ```python
 from tf.app import use
-# Use the local path if not in the standard TF directory
-A = use("my_bible:clone", checkout="local", locations="~/text-fabric-data")
+# Use the local path (locations should point to the parent of the 1.0 folder)
+A = use("my_bible", checkout="local", locations="~/text-fabric-data")
+```
+
+Alternatively, to load it as pure data (as done in `main.py` for TOB):
+
+```python
+from tf.fabric import Fabric
+TF = Fabric(locations=["~/text-fabric-data/my_bible/1.0"])
+api = TF.load("text title number")
 ```
 
 ## 5. Integrating with `biblecli`
 
 To make your translation available in `biblecli`:
-1. Ensure your TF files are in `~/text-fabric-data/YOUR_TRANSLATION/1.0`.
+1. Ensure your TF files are in `~/text-fabric-data/my_bible/1.0`.
 2. Update the `TOB_DIR` or add a similar configuration in `src/main.py` to point to your new directory.
 3. Use the mapping tools in `src/book_normalizer.py` to align your book names with the internal codes.
 
