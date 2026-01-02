@@ -54,7 +54,10 @@ def mock_ref_db():
 
 @pytest.fixture
 def printer(mock_tob_api, mock_n1904_app, normalizer, mock_ref_db):
-    return VersePrinter(mock_tob_api, mock_n1904_app, normalizer, mock_ref_db)
+    mock_tob_provider = MagicMock(return_value=mock_tob_api)
+    mock_n1904_provider = MagicMock(return_value=mock_n1904_app)
+    mock_bhsa_provider = MagicMock()
+    return VersePrinter(mock_tob_provider, mock_n1904_provider, normalizer, mock_ref_db, mock_bhsa_provider)
 
 def test_lxx_book_name_resolution(printer, mock_tob_api):
     # Test that passing "Gen" (LXX name) correctly looks up "Genèse" in TOB
@@ -98,6 +101,44 @@ def test_standard_book_name_resolution(printer, mock_tob_api):
     mock_tob_api.F.text.v.assert_called()
 
 def test_lxx_greek_text_fetching(printer, mock_lxx_app):
+    pass # Existing placeholder/todo?
+
+def test_get_hebrew_text(printer):
+    # Setup BHSA mock
+    mock_bhsa_app = MagicMock()
+    printer.bhsa_provider.return_value = mock_bhsa_app
+    
+    # Setup node lookup
+    mock_bhsa_app.nodeFromSectionStr.return_value = 999
+    
+    # Setup text features (L.d for words, F.g_word_utf8 for text)
+    mock_bhsa_app.api.L.d.return_value = [10, 11] # word nodes
+    mock_bhsa_app.api.F.g_word_utf8.v.side_effect = lambda w: "Word1" if w==10 else "Word2"
+    
+    text = printer.get_hebrew_text("Genesis", 1, 1)
+    
+    assert text == "Word1 Word2"
+    mock_bhsa_app.nodeFromSectionStr.assert_called_with("Genesis 1:1")
+
+def test_print_verse_calls_hebrew(printer, mock_tob_api, mock_lxx_app):
+    # Verify that passing show_hebrew=True calls get_hebrew_text logic OR prints if node is driving
+    
+    # Test 1: Driving node is NOT BHSA (e.g. N1904 or None)
+    # So it should call get_hebrew_text -> bhsa_provider
+    mock_bhsa_app = MagicMock()
+    printer.bhsa_provider.return_value = mock_bhsa_app
+    mock_bhsa_app.nodeFromSectionStr.return_value = 999
+    mock_bhsa_app.api.L.d.return_value = [10]
+    mock_bhsa_app.api.F.g_word_utf8.v.return_value = "HebrewText"
+    
+    # Call print_verse with show_hebrew=True
+    # We are mocking print (or just ensuring logic runs without error and calls provider)
+    # Since print_verse prints to stdout, we can check side effects on dependencies.
+    
+    printer.print_verse(node=None, book_en="Genesis", chapter=1, verse=1, show_hebrew=True, show_english=False, show_french=False, show_greek=False)
+    
+    printer.bhsa_provider.assert_called()
+    mock_bhsa_app.nodeFromSectionStr.assert_called()
     # Test that print_verse fetches Greek from source_app if provided
     
     mock_lxx_app.api.T.text.return_value = "LXX Text"

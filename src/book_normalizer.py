@@ -9,10 +9,28 @@ class BookNormalizer:
         self.n1904_to_code = {}
         self.code_to_fr_abbr = {}
         self.code_to_en_abbr = {}
+        self.code_to_bhsa = {}
         self.code_to_abbreviations = {}
         self.code_to_n1904 = {}
         self.book_order = {}
+        
+        self.OT_BOOKS = {
+            'GEN', 'EXO', 'LEV', 'NUM', 'DEU', 'JOS', 'JDG', 'RUT', '1SA', '2SA', '1KI', '2KI', '1CH', '2CH', 'EZR', 'NEH', 'EST',
+            'JOB', 'PSA', 'PRO', 'ECC', 'SNG', 'ISA', 'JER', 'LAM', 'EZK', 'DAN', 'HOS', 'JOL', 'AMO', 'OBA', 'JON', 'MIC', 'NAM',
+            'HAB', 'ZEP', 'HAG', 'ZEC', 'MAL'
+        }
+        self.NT_BOOKS = {
+            'MAT', 'MRK', 'LUK', 'JHN', 'ACT', 'ROM', '1CO', '2CO', 'GAL', 'EPH', 'PHP', 'COL', '1TH', '2TH', '1TI', '2TI', 'TIT',
+            'PHM', 'HEB', 'JAS', '1PE', '2PE', '1JN', '2JN', '3JN', 'JUD', 'REV'
+        }
+        
         self._load_mappings()
+
+    def is_ot(self, book_code):
+        return book_code in self.OT_BOOKS
+
+    def is_nt(self, book_code):
+        return book_code in self.NT_BOOKS
 
     def _load_mappings(self):
         path = os.path.join(self.data_dir, "bible_books.json")
@@ -29,6 +47,7 @@ class BookNormalizer:
                 self.book_order[code] = i
                 en_info = info.get("en", {})
                 en_label = en_info.get("label")
+                bhsa_label = en_info.get("bhsa_label") # Load BHSA label
                 abbreviations = en_info.get("abbreviations", [])
                 
                 # Canonical is first element
@@ -53,6 +72,12 @@ class BookNormalizer:
                     self.code_to_en_abbr[code] = en_abbr
                     self.code_to_abbreviations[code] = abbreviations # Now stores all abbreviations
                     self.code_to_n1904[code] = en_key
+                    
+                    # Store BHSA mapping: defaults to en_label if bhsa_label not set
+                    # But careful: BHSA uses "Genesis" but our en_key logic might produce "Genesis". 
+                    # Does BHSA use underscores "Samuel_I"? Yes.
+                    # So we should populate code_to_bhsa.
+                    self.code_to_bhsa[code] = bhsa_label if bhsa_label else (en_label if en_label else code)
                     
                     # Register English variations
                     self.abbreviations[en_key] = en_key

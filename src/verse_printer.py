@@ -1,12 +1,45 @@
 class VersePrinter:
-    def __init__(self, tob_api, n1904_app, normalizer, reference_db):
-        self.tob_api = tob_api
-        self.app = n1904_app
-        self.lxx = None # Removed constructor arg, but kept prop for strict compat or just remove?
-        # Actually print_verse uses source_app passed at runtime. 
-        # But let's keep self.lxx = None just in case any internal logic accessed it (checked code, it didn't seem to rely on self.lxx except via source_app arg)
+    def __init__(self, tob_provider, n1904_provider, normalizer, reference_db, bhsa_provider=None):
+        self.tob_provider = tob_provider
+        self.n1904_provider = n1904_provider
+        self._tob_api = None
+        self._n1904_app = None
+        self.lxx = None 
         self.normalizer = normalizer
         self.ref_db = reference_db
+        self.bhsa_provider = bhsa_provider
+
+    @property
+    def tob_api(self):
+        if self._tob_api is None and self.tob_provider:
+            self._tob_api = self.tob_provider()
+        return self._tob_api
+
+    @property
+    def app(self):
+        if self._n1904_app is None and self.n1904_provider:
+             self._n1904_app = self.n1904_provider()
+        return self._n1904_app
+
+    def get_hebrew_text(self, book_en, chapter_num, verse_num):
+        if not self.bhsa_provider: 
+            return None
+            
+        bhsa_app = self.bhsa_provider()
+        if not bhsa_app: return None
+
+        # Look up node in BHSA
+        # Ideally use OfflineBHSAApp nodeFromSectionStr, but here we might not have that method exposed on VersePrinter interface easily without creating a new instance.
+        # But wait, bhsa_provider returns the OfflineBHSAApp instance.
+        
+        node = bhsa_app.nodeFromSectionStr(f"{book_en} {chapter_num}:{verse_num}")
+        if node:
+            # Get text from words
+            # Confirmed via research: g_word_utf8
+            words = bhsa_app.api.L.d(node, otype='word')
+            text = " ".join([bhsa_app.api.F.g_word_utf8.v(w) for w in words])
+            return text
+        return None
 
     def get_french_text(self, book_en, chapter_num, verse_num):
         if not self.tob_api:
@@ -113,7 +146,7 @@ class VersePrinter:
             
         return target_str
 
-    def print_verse(self, node=None, book_en=None, chapter=None, verse=None, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False, source_app=None):
+    def print_verse(self, node=None, book_en=None, chapter=None, verse=None, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False, source_app=None, show_hebrew=False):
         if not source_app:
             source_app = self.app
             
@@ -139,20 +172,15 @@ class VersePrinter:
         # 1. Try resolving to code first, then to French label
         book_code = self.normalizer.n1904_to_code.get(book_en)
         if not book_code:
-             # Try abbreviations
+             # Try abbreviations or reverse lookup (if book_en is 'Numeri' from BHSA)
+             # If book_en is 'Numeri', n1904_to_code won't find it directly maybe?
+             # But let's rely on standard flow.
              canon = self.normalizer.abbreviations.get(book_en)
              if canon:
                  book_code = self.normalizer.n1904_to_code.get(canon)
         
         book_fr = None
         if book_code:
-            # Reconstruct from code -> n1904 -> tob
-            # Or use code_to_fr_abbr? TOB usually matches French Label in TF?
-            # get_french_text lookup logic uses n1904_to_tob.
-            # But let's check if we can get the label directly from mapping?
-            # Actually, standard lookup uses n1904_to_tob which maps En Key -> Fr Label
-            
-            # Let's try to get the standard English key first
             en_key = self.normalizer.code_to_n1904.get(book_code)
             if en_key:
                 book_fr = self.normalizer.n1904_to_tob.get(en_key)
@@ -168,9 +196,34 @@ class VersePrinter:
         
         # Header
         print(f"\n{book_fr} {chapter}:{verse}")
+        
+        # Hebrew Text
+        if show_hebrew:
+            # If current node IS Hebrew, print it
+            # How to check? We can check if source_app has specific features or check if the app match BHSA
+            # Or simpler: always try to fetch Hebrew from BHSA provider if show_hebrew is True
+            # regardless of whether the driving node is N1904, LXX or BHSA.
+            # BUT if the driving node IS BHSA, we already have the node!
+            if self.bhsa_provider:
+                 bhsa_app = self.bhsa_provider()
+                 if bhsa_app and source_app.api == bhsa_app.api:
+                     # Driving node is BHSA
+                     if node:
+                         words = L.d(node, otype='word')
+                         # BHSA features: g_word_utf8
+                         if hasattr(F, 'g_word_utf8'):
+                             hebrew_text = " ".join([F.g_word_utf8.v(w) for w in words])
+                             print(f"{hebrew_text}")
+                 else:
+                     # Fetch via alignment (Book/Chapter/Verse)
+                     hebrew_text = self.get_hebrew_text(book_en, chapter, verse)
+                     if hebrew_text:
+                         print(f"{hebrew_text}")
 
         # Greek text
         if show_greek and node:
+            # Check if source app has Greek text feature
+            # N1904 and LXX use T.text logic or standard TF text
             greek_text = T.text(node)
             if greek_text and greek_text.strip():
                 print(f"{greek_text}")

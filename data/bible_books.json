@@ -48,6 +48,7 @@
         "NUM": {
             "en": {
                 "label": "Numbers",
+                "bhsa_label": "Numeri",
                 "abbreviations": [
                     "Num"
                 ]
@@ -62,6 +63,7 @@
         "DEU": {
             "en": {
                 "label": "Deuteronomy",
+                "bhsa_label": "Deuteronomium",
                 "abbreviations": [
                     "Deut"
                 ]
@@ -76,6 +78,7 @@
         "JOS": {
             "en": {
                 "label": "Joshua",
+                "bhsa_label": "Josua",
                 "abbreviations": [
                     "Josh"
                 ]
@@ -90,6 +93,7 @@
         "JDG": {
             "en": {
                 "label": "Judges",
+                "bhsa_label": "Judices",
                 "abbreviations": [
                     "Judg"
                 ]
@@ -118,6 +122,7 @@
         "1SA": {
             "en": {
                 "label": "1 Samuel",
+                "bhsa_label": "Samuel_I",
                 "abbreviations": [
                     "1 Sam"
                 ]
@@ -132,6 +137,7 @@
         "2SA": {
             "en": {
                 "label": "2 Samuel",
+                "bhsa_label": "Samuel_II",
                 "abbreviations": [
                     "2 Sam"
                 ]
@@ -146,6 +152,7 @@
         "1KI": {
             "en": {
                 "label": "1 Kings",
+                "bhsa_label": "Reges_I",
                 "abbreviations": [
                     "1 Kings",
                     "1Kgs"
@@ -161,6 +168,7 @@
         "2KI": {
             "en": {
                 "label": "2 Kings",
+                "bhsa_label": "Reges_II",
                 "abbreviations": [
                     "2 Kings",
                     "2Kgs",
@@ -177,6 +185,7 @@
         "1CH": {
             "en": {
                 "label": "1 Chronicles",
+                "bhsa_label": "Chronica_I",
                 "abbreviations": [
                     "1 Chron",
                     "1Chr"
@@ -192,6 +201,7 @@
         "2CH": {
             "en": {
                 "label": "2 Chronicles",
+                "bhsa_label": "Chronica_II",
                 "abbreviations": [
                     "2 Chron",
                     "2Chr"
@@ -207,6 +217,7 @@
         "EZR": {
             "en": {
                 "label": "Ezra",
+                "bhsa_label": "Esra",
                 "abbreviations": [
                     "Ezra"
                 ]
@@ -221,6 +232,7 @@
         "NEH": {
             "en": {
                 "label": "Nehemiah",
+                "bhsa_label": "Nehemia",
                 "abbreviations": [
                     "Neh"
                 ]
@@ -249,6 +261,7 @@
         "JOB": {
             "en": {
                 "label": "Job",
+                "bhsa_label": "Iob",
                 "abbreviations": [
                     "Job"
                 ]
@@ -263,6 +276,7 @@
         "PSA": {
             "en": {
                 "label": "Psalms",
+                "bhsa_label": "Psalmi",
                 "abbreviations": [
                     "Ps"
                 ]
@@ -277,6 +291,7 @@
         "PRO": {
             "en": {
                 "label": "Proverbs",
+                "bhsa_label": "Proverbia",
                 "abbreviations": [
                     "Prov"
                 ]
@@ -306,6 +321,7 @@
         "SNG": {
             "en": {
                 "label": "Song of Solomon",
+                "bhsa_label": "Canticum",
                 "abbreviations": [
                     "Song",
                     "Cant"
@@ -321,6 +337,7 @@
         "ISA": {
             "en": {
                 "label": "Isaiah",
+                "bhsa_label": "Jesaia",
                 "abbreviations": [
                     "Isa"
                 ]
@@ -335,6 +352,7 @@
         "JER": {
             "en": {
                 "label": "Jeremiah",
+                "bhsa_label": "Jeremia",
                 "abbreviations": [
                     "Jer"
                 ]
@@ -349,6 +367,7 @@
         "LAM": {
             "en": {
                 "label": "Lamentations",
+                "bhsa_label": "Threni",
                 "abbreviations": [
                     "Lam"
                 ]
@@ -363,6 +382,7 @@
         "EZE": {
             "en": {
                 "label": "Ezekiel",
+                "bhsa_label": "Ezechiel",
                 "abbreviations": [
                     "Ezek"
                 ]
@@ -433,6 +453,7 @@
         "OBA": {
             "en": {
                 "label": "Obadiah",
+                "bhsa_label": "Obadia",
                 "abbreviations": [
                     "Obad"
                 ]
@@ -447,6 +468,7 @@
         "JON": {
             "en": {
                 "label": "Jonah",
+                "bhsa_label": "Jona",
                 "abbreviations": [
                     "Jonah"
                 ]
@@ -461,6 +483,7 @@
         "MIC": {
             "en": {
                 "label": "Micah",
+                "bhsa_label": "Micha",
                 "abbreviations": [
                     "Mic"
                 ]
@@ -489,6 +512,7 @@
         "HAB": {
             "en": {
                 "label": "Habakkuk",
+                "bhsa_label": "Habakuk",
                 "abbreviations": [
                     "Hab"
                 ]
@@ -503,6 +527,7 @@
         "ZEP": {
             "en": {
                 "label": "Zephaniah",
+                "bhsa_label": "Zephania",
                 "abbreviations": [
                     "Zeph"
                 ]
@@ -531,6 +556,7 @@
         "ZEC": {
             "en": {
                 "label": "Zechariah",
+                "bhsa_label": "Sacharia",
                 "abbreviations": [
                     "Zech"
                 ]
@@ -545,6 +571,7 @@
         "MAL": {
             "en": {
                 "label": "Malachi",
+                "bhsa_label": "Maleachi",
                 "abbreviations": [
                     "Mal"
                 ]
