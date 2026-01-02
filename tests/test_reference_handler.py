@@ -19,7 +19,7 @@ def normalizer(data_dir):
 
 @pytest.fixture
 def handler(mock_app, normalizer, mock_printer):
-    return ReferenceHandler(mock_app, normalizer, mock_printer)
+    return ReferenceHandler(mock_app, None, normalizer, mock_printer)
 
 def test_single_ref_calls_printer(handler, mock_app, mock_printer):
     # Setup mock to return a node
@@ -61,8 +61,8 @@ def test_chapter_ref_calls_printer_loop(handler, mock_app, mock_printer):
     assert mock_printer.print_verse.call_count == 3
     # Check calls
     expected_calls = [
-        call(node=1001, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False),
-        call(node=1002, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False),
-        call(node=1003, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False)
+        call(node=1001, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False, source_app=mock_app),
+        call(node=1002, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False, source_app=mock_app),
+        call(node=1003, show_english=False, show_greek=True, show_french=True, show_crossref=False, cross_refs=None, show_crossref_text=False, source_app=mock_app)
     ]
     mock_printer.print_verse.assert_has_calls(expected_calls)
