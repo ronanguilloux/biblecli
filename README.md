@@ -93,6 +93,8 @@ Same exact logic if you were to use a copy of the *Bible de Jérusalem* (EBAF/CE
 
 You can use the `biblecli` script to execute commands. It will automatically set up the environment if needed.
 
+For a comprehensive guide, see [MANUAL.md](MANUAL.md) or run `biblecli --help`.
+
 ### Basic Commands
 
 Display a New Testament verse from

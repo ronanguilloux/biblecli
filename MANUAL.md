@@ -1,10 +1,9 @@
-class CLIHelp:
-    def __init__(self):
-        pass
+```sh
+biblecli --help
+```
 
-    def print_usage(self):
-        help_text = """
-BIBLECLI(1)                      Bible CLI Manual                      BIBLECLI(1)
+```sh
+BIBLECLI(1)                      Bible CLI Manual
 
 NAME
        biblecli - Command-line interface for the Greek New Testament & Hebrew Bible
@@ -109,5 +108,4 @@ EXAMPLES
 
        biblecli list books
               Show all supported book names.
-"""
-        print(help_text)
+```
