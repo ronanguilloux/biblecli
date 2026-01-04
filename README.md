@@ -294,9 +294,7 @@ pytest
 
 ## Lazy Loading Logic
 
-Optimization Complete!
-
-I have implemented the smart OT/NT lazy loading and default behaviors.
+We have implemented the smart OT/NT lazy loading and default behaviors.
 
 ### Key Achievements
 
@@ -337,4 +335,3 @@ Measured using reference: **Gn 1:1**
 - **Baseline**: ~3.7s startup time.
 - **Lazy Loading**: Accessing French or Greek (NT) adds negligible overhead. Accessing OT adds ~0.3s for LXX.
 - **Hebrew Cost**: Accessing Hebrew (`--tr hb`) consistently adds ~6s to load the `ETCBC/bhsa` dataset.
-

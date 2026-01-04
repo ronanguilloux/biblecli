@@ -100,3 +100,17 @@ def test_handle_ref_show_hebrew(handler, mock_app, mock_printer):
     
     args = mock_printer.print_verse.call_args[1]
     assert args['show_hebrew'] is True
+
+def test_handle_ref_bj_version(handler, mock_app, mock_printer):
+    # Setup success ref
+    mock_app.nodeFromSectionStr.return_value = 1001
+    
+    # Test defaulting to 'tob'
+    handler.handle_reference("John 1:1")
+    args_default = mock_printer.print_verse.call_args[1]
+    assert args_default.get('french_version') == 'tob'
+    
+    # Test explicit 'bj'
+    handler.handle_reference("John 1:1", french_version='bj')
+    args_bj = mock_printer.print_verse.call_args[1]
+    assert args_bj.get('french_version') == 'bj'

@@ -53,11 +53,25 @@ def mock_ref_db():
     return mock
 
 @pytest.fixture
-def printer(mock_tob_api, mock_n1904_app, normalizer, mock_ref_db):
+def mock_bj_api():
+    mock = MagicMock()
+    mock.F = MagicMock()
+    mock.L = MagicMock()
+    mock.F.otype.s.return_value = [100]
+    mock.F.book.v.return_value = "GEN" # Use code as feature value for BJ
+    mock.L.d.side_effect = lambda n, otype: [200] if otype == 'chapter' else [300] if otype == 'verse' else [400] if otype == 'word' else []
+    mock.F.chapter.v.return_value = 1
+    mock.F.verse.v.return_value = 1
+    mock.F.text.v.return_value = "Au commencement (BJ)..."
+    return mock
+
+@pytest.fixture
+def printer(mock_tob_api, mock_n1904_app, normalizer, mock_ref_db, mock_bj_api):
     mock_tob_provider = MagicMock(return_value=mock_tob_api)
     mock_n1904_provider = MagicMock(return_value=mock_n1904_app)
     mock_bhsa_provider = MagicMock()
-    return VersePrinter(mock_tob_provider, mock_n1904_provider, normalizer, mock_ref_db, mock_bhsa_provider)
+    mock_bj_provider = MagicMock(return_value=mock_bj_api)
+    return VersePrinter(mock_tob_provider, mock_n1904_provider, normalizer, mock_ref_db, mock_bhsa_provider, bj_provider=mock_bj_provider)
 
 def test_lxx_book_name_resolution(printer, mock_tob_api):
     # Test that passing "Gen" (LXX name) correctly looks up "Genèse" in TOB
@@ -147,3 +161,20 @@ def test_print_verse_calls_hebrew(printer, mock_tob_api, mock_lxx_app):
     printer.print_verse(node=1001, source_app=mock_lxx_app, show_greek=True, show_french=False)
     
     mock_lxx_app.api.T.text.assert_called_with(1001)
+
+def test_print_verse_calls_bj(printer, mock_bj_api, mock_tob_api):
+    # Test that setting french_version='bj' uses the BJ API
+    
+    # Reset mocks to clear any previous interactions
+    mock_tob_api.reset_mock()
+    mock_bj_api.reset_mock()
+    
+    # Call print_verse requesting BJ
+    printer.print_verse(node=None, book_en="Genesis", chapter=1, verse=1, show_french=True, french_version='bj')
+    
+    # Verify BJ API was used (e.g. text fetched)
+    mock_bj_api.F.text.v.assert_called()
+    
+    # Verify TOB API was NOT used for text fetching (though it might be checked for existence/loading)
+    # Actually, printer logic: if show_french: if french_version == 'bj': ... else: ...
+    mock_tob_api.F.text.v.assert_not_called()
