@@ -313,9 +313,10 @@ def main():
     parser.add_argument("args", nargs="*", help="Arguments for the command")
     # Remove choices from argparse to prevent error on greedy consumption of positional args
     parser.add_argument("-t", "--tr", nargs="+", help="Translations (en, fr, gr, hb)")
+    parser.add_argument("-b", "--bible", help="Select French Text Version (tob, bj)")
     parser.add_argument("-c", "--crossref", action="store_true", help="Display cross-references")
     parser.add_argument("-f", "--crossref-full", action="store_true", help="Display cross-references with text")
-    parser.add_argument("-s", "--source", help="Filter cross-references by source")
+    parser.add_argument("-s", "--crossref-source", help="Filter cross-references by source")
     
     args = parser.parse_args()
 
@@ -400,13 +401,37 @@ def main():
         resolved = normalizer.abbreviations.get(book_key, book_key)
         book_code = normalizer.n1904_to_code.get(resolved) or normalizer.n1904_to_code.get(resolved.replace(" ", "_"))
         
-        ref_db.load_all(source_filter=args.source)
+        # Determine source filter logic
+        # Default source_filter is None (all)
+        source_filter = args.crossref_source
+        
+        # Smart default: if no -s provided, but -b provided, use -b as source hint
+        # This allows `biblecli "Mc 1:1" -b tob -c` to show TOB notes.
+        if not source_filter and args.bible:
+             source_filter = args.bible
+        
+        # Determine Scope (NT/OT)
+        scope = 'all'
+        # We can use normalizer on book_code to be precise
+        if book_code:
+            if normalizer.is_nt(book_code):
+                 scope = 'nt'
+            elif normalizer.is_ot(book_code):
+                 scope = 'ot'
+
+        ref_db.load_all(source_filter=source_filter, scope=scope)
         cross_refs = ref_db.in_memory_refs
 
     # Determine French Version
+    # Determine French Version
     french_version = 'tob'
-    if args.source and args.source.lower() == 'bj':
-        french_version = 'bj'
+    if args.bible:
+        french_version = args.bible.lower()
+    elif args.crossref_source and args.crossref_source.lower() == 'bj':
+         # Fallback for backward compatibility? Or STRICT separation?
+         # User requested: "change the behaviour: -b is now for selecting French Text... and -s is for source... only".
+         # So we should strictly ignore -s for french_version.
+         pass
 
     handler.handle_reference(first_arg, show_english, show_greek, show_french, show_crossref, cross_refs, args.crossref_full, show_hebrew, french_version=french_version)
 

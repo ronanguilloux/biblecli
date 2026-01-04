@@ -37,7 +37,9 @@ COMMANDS
               Add a new cross-reference/note to a personal collection.
               
               Arguments:
-              -c, --collection: Collection name (saved as data/references_nt_[name].json)
+              -c, --collection: Collection name (e.g., 'notes'). 
+                                Automatically saved as data/references_nt_[name].json 
+                                or data/references_ot_[name].json based on source book.
               -s, --source:     Source verse (e.g., 'Mc 1:1')
               -t, --target:     Target verse or reference note (e.g., 'Lc 1:1')
               --type:           Relation type (parallel, allusion, quotation, other). 
@@ -49,11 +51,11 @@ COMMANDS
 
 SHORTCUTS
        tob [REFERENCE]
-              Equivalent to `biblecli [REFERENCE] -s tob`. 
+              Equivalent to `biblecli [REFERENCE] -b tob`. 
               Focuses on the French TOB translation. Use -f to view notes.
 
        bj [REFERENCE]
-              Equivalent to `biblecli [REFERENCE] -s bj`.
+              Equivalent to `biblecli [REFERENCE] -b bj`.
               Focuses on the French BJ translation.
 
 REFERENCES
@@ -71,9 +73,13 @@ OPTIONS
               Specify translations to display. Multiple values allowed.
               Codes:
               - en: English (Berean)
-              - fr: French (TOB by default. Use -s bj for Bible de Jérusalem)
+              - fr: French (TOB by default. Use -b bj for Bible de Jérusalem)
               - gr: Greek (N1904 for NT, LXX for OT)
               - hb: Hebrew (BHSA)
+
+       -b, --bible [tob|bj]
+              Select the French text version (Translation) to display.
+              Options: 'tob' (default), 'bj'.
 
        -c, --crossref
               Display list of cross-references for the verse.
@@ -81,9 +87,9 @@ OPTIONS
        -f, --crossref-full
               Display cross-references with their full verse text.
 
-       -s, --source [SOURCE]
-              Filter cross-references by source id (e.g. 'tob' for TOB notes).
-              Also selects the French translation version if '-t fr' is used (e.g. '-s bj').
+       -s, --crossref-source [SOURCE]
+              Filter cross-references by source id (e.g. 'tob' for TOB notes, 'all' for all valid sources).
+              If omitted, and -b is provided, the bible version is used as the default source.
 
 DATA SOURCES
        N1904 (Greek NT)
@@ -107,7 +113,7 @@ DATA SOURCES
               Note: Requires manual setup (EPUB conversion). See ADD_SOURCES.md.
 
        OpenBible
-              Cross-reference data provided by OpenBible.info.
+              Cross-reference data provided by OpenBible.info,a modernized, evolution of the classic Treasury of Scripture Knowledge (TSK)
 
 EXAMPLES
        biblecli "Jn 3:16" -t en fr gr

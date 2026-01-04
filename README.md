@@ -155,7 +155,7 @@ biblecli list books
 
 Use the `-t` or `--tr` option to specify translations. Supported: `en` (Berean Interlinear Bible English translation), `fr` (French TOB by default, or BJ), `gr` (Greek N1904).
 When no translation is specified, the default depends on the book (usually Greek/Hebrew + French TOB).
-When `-t fr` is used without a source, **TOB** is the default French text. Use `-s bj` to select Bible de Jérusalem. 
+Use `-b` to select the French translation source (e.g. `-b bj` for Bible de Jérusalem). Default is TOB. 
 
 Show only English:
 ```sh
@@ -256,16 +256,16 @@ This will automatically create/update `data/references_nt_personal.json`.
 
 ### Shortcuts
 
-For convenience, you can use the `tob` command to quickly access the TOB French translation and notes. It is equivalent to `biblecli ... -s tob`.
+For convenience, you can use the `tob` command to quickly access the TOB French translation. It is equivalent to `biblecli ... -b tob`.
 
 ```sh
-tob "Mc 1:1" # equivalent to `biblecli "Mk 1:1" -s tob` - displays French TOB
+tob "Mc 1:1" # equivalent to `biblecli "Mk 1:1" -b tob` - displays French TOB
 ```
 
 You can also use the `bj` command for the Bible de Jérusalem:
 
 ```sh
-bj "Mc 1:1" # equivalent to `biblecli "Mk 1:1" -s bj` - displays French BJ
+bj "Mc 1:1" # equivalent to `biblecli "Mk 1:1" -b bj` - displays French BJ
 ```
 
 ### Abbreviations
@@ -349,3 +349,17 @@ Measured using reference: **Gn 1:1**
 - **Baseline**: ~3.7-4.0s startup time for NT.
 - **Lazy Loading**: Accessing OT adds ~2s (LXX + BHSA).
 - **Hebrew**: For OT queries, Hebrew is displayed by default, incurring the BHSA load cost (`~2s`). For NT queries, it is skipped, saving that time.
+
+## Reference Sources
+
+### OpenBible.info (Cross-References)
+
+The data provided by **OpenBible.info** is indeed a modernized, evolution of the classic **Treasury of Scripture Knowledge (TSK)**, one of the most comprehensive sets of cross references ever compiled
+
+The OpenBible.info site’s creator, Sean Boisen, cleaned and expanded the dataset, blending it with other data. While TSK is often cited as having 500,000 references, the OpenBible creator noted that after extracting the references from available public domain digital copies, he only counted approximately 380,000 unique references, which formed the "seed" for the OpenBible project.
+
+The raw TSK is notoriously "noisy" when converted to machine-readable formats. OpenBible performed several processing steps:
+
+*   **De-duplication**: The original TSK contains many redundant links. OpenBible filtered these to ensure a cleaner mapping.
+*   **Merging Adjacent Verses**: In the original TSK, a reference might point to John 1:1, John 1:2, and John 1:3 separately. OpenBible’s cleaning process combined these into ranges or grouped them to make the data more readable for digital interfaces.
+*   **Reference Extraction**: The raw TSK often lists references in archaic or inconsistent abbreviations. The creator used regular expressions (regex) and normalize these into a standard `Book Chapter:Verse` format that a computer can reliably parse.

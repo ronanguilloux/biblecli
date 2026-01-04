@@ -10,4 +10,4 @@ BIN_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # argparse usually handles flags anywhere.
 # Pass -s tob at the end to be safe or explicit.
 
-"$BIN_DIR/biblecli" "$@" -s tob
+"$BIN_DIR/biblecli" "$@" -b tob

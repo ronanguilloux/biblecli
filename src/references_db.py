@@ -11,36 +11,61 @@ class ReferenceDatabase:
         self.in_memory_refs = defaultdict(lambda: {"notes": [], "relations": []})
         self.loaded_files = [] # Track which files contributed to in-memory state
 
-    def load_all(self, source_filter=None):
+    def load_all(self, source_filter=None, scope='all'):
         """
         Loads references similar to the legacy load_cross_references function.
         """
         self.in_memory_refs.clear()
         
-        # Determine files to load based on logic from main.py
         files_to_load = []
         
-        # If source_filter is 'tob', only load TOB. 
-        # Note: The legacy logic split OT/NT based on book_code but here we load ALL 
-        # consistent with a database view, or we can filter later.
-        # To maintain exact same behavior for the 'view' command, the view command 
-        # might need to call this with specific file lists, OR we load everything and filter by book later.
-        # Loading everything is safer for a unified DB.
+        # Determine patterns to match based on scope
+        patterns_to_scan = [] # Tuples of (prefix, glob_pattern)
         
-        if source_filter == 'tob':
-            files_to_load = ["references_nt_tob.json"] # And OT if it existed
-        else:
-            # Logic: load all references_nt_*.json
-            pattern = os.path.join(self.data_dir, "references_nt_*.json")
-            globbed = glob.glob(pattern)
-            files_to_load = [os.path.basename(p) for p in globbed]
+        # Generic files (no prefix or special ones)
+        # We generally assume most files are prefixed. 
+        # But 'references_personal.json' or 'references_sample.json' might exist.
+        # We will scan everything and classify.
+        
+        # Better approach: Glob ALL files, then filter by scope/source
+        all_json = glob.glob(os.path.join(self.data_dir, "references_*.json"))
+        
+        for file_path in all_json:
+            filename = os.path.basename(file_path)
             
-            # Also load OT if present (openbible default)
-            files_to_load.append("references_ot_openbible.json")
-
-            if not globbed and "references_nt_openbible.json" not in files_to_load:
-                 files_to_load.append("references_nt_openbible.json")
-
+            # 1. Scope Check
+            is_nt_file = "references_nt_" in filename
+            is_ot_file = "references_ot_" in filename
+            is_generic = not (is_nt_file or is_ot_file)
+            
+            should_load_scope = False
+            
+            if scope == 'all':
+                should_load_scope = True
+            elif scope == 'nt':
+                should_load_scope = is_nt_file or is_generic
+            elif scope == 'ot':
+                should_load_scope = is_ot_file or is_generic
+            elif scope == 'generic':
+                 should_load_scope = is_generic
+            
+            if not should_load_scope:
+                continue
+                
+            # 2. Source Filter Check
+            if source_filter and source_filter != 'all':
+                # Filter strictly by source name contained in filename
+                # e.g. 'openbible' matches 'references_nt_openbible.json'
+                # and 'references_openbible.json'
+                # Using simple string inclusion for now
+                if source_filter.lower() not in filename.lower():
+                    continue
+            
+            files_to_load.append(filename)
+            
+        # Fallback/Safety: If explicit source requested but not found via glob?
+        # (e.g. file doesn't exist yet but user wants it loaded? No, we only load existing)
+            
         for filename in files_to_load:
             self._load_file(filename)
 
@@ -98,7 +123,30 @@ class ReferenceDatabase:
         This reads the specific file, modifies it, and saves it, 
         independent of the unified in-memory load state.
         """
-        filename = f"references_{collection_name}.json"
+        # Normalize source and target
+        norm_source = self.normalizer.normalize_reference(source_ref)
+        norm_target = self.normalizer.normalize_reference(target_ref)
+        
+        if not norm_source:
+            raise ValueError(f"Invalid source reference: {source_ref}")
+        if not norm_target:
+            raise ValueError(f"Invalid target reference: {target_ref}")
+            
+        src_code = norm_source[0]
+        src_str = norm_source[3]
+        tgt_str = norm_target[3]
+        
+        # Determine prefix based on source book
+        prefix = "nt"
+        if self.normalizer.is_ot(src_code):
+             prefix = "ot"
+             
+        # Construct filename with prefix
+        # We assume collection_name does NOT have the prefix provided by user
+        # Clean collection name just in case
+        clean_name = collection_name.replace("references_", "").replace("nt_", "").replace("ot_", "").replace(".json", "")
+        filename = f"references_{prefix}_{clean_name}.json"
+        
         path = os.path.join(self.data_dir, filename)
         
         # Load specific file or init new
@@ -109,19 +157,7 @@ class ReferenceDatabase:
                 except json.JSONDecodeError:
                     data = {"version": "1.0", "cross_references": []}
         else:
-            data = {"version": "1.0", "description": f"References for {collection_name}", "cross_references": []}
-
-        # Normalize source and target
-        norm_source = self.normalizer.normalize_reference(source_ref)
-        norm_target = self.normalizer.normalize_reference(target_ref)
-        
-        if not norm_source:
-            raise ValueError(f"Invalid source reference: {source_ref}")
-        if not norm_target:
-            raise ValueError(f"Invalid target reference: {target_ref}")
-            
-        src_str = norm_source[3]
-        tgt_str = norm_target[3]
+            data = {"version": "1.0", "description": f"References for {clean_name} ({prefix})", "cross_references": []}
         
         # Find existing source entry or create new
         source_entry = None
